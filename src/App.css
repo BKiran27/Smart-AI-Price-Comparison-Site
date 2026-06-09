@@ -91,6 +91,27 @@
   box-shadow: var(--shadow-glow);
 }
 
+.settings-gear-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-gear-btn:hover {
+  border-color: var(--color-indigo);
+  color: var(--text-primary);
+  transform: rotate(45deg);
+  background: rgba(99, 102, 241, 0.1);
+}
+
 /* Dashboard Core Grid Layout */
 .dashboard-content {
   flex: 1;

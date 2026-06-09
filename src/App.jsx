@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, ArrowLeft, ExternalLink, TrendingDown, Check, 
   Plus, X, ChevronDown, ChevronUp, Globe, Scale, 
-  Bot, Sparkles, Bell, ArrowUpRight, Award, Flame, Info
+  Bot, Sparkles, Bell, ArrowUpRight, Award, Flame, Info,
+  Settings
 } from 'lucide-react';
 
-import { searchProducts, getTrendingDeals } from './utils/SearchEngine';
+import { searchProducts, getTrendingDeals, searchProductsWithAi } from './utils/SearchEngine';
 import PriceChart from './components/PriceChart';
 import AiAssistant from './components/AiAssistant';
 import ComparisonMatrix from './components/ComparisonMatrix';
@@ -87,6 +88,8 @@ export default function App() {
   const [sortOption, setSortOption] = useState('cheapest'); // 'cheapest', 'rating', 'shipping'
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [trendingDeals, setTrendingDeals] = useState([]);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('smart_buyer_gemini_key') || '');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Fetch trending deals on mount
   useEffect(() => {
@@ -130,12 +133,24 @@ export default function App() {
         if (step.status === "success") {
           setTimeout(async () => {
             try {
-              const response = await fetch(`/api/ai-search?q=${encodeURIComponent(searchQuery)}`);
-              if (!response.ok) throw new Error("Network response was not ok");
-              const data = await response.json();
-              setSearchResult(data);
+              const activeKey = localStorage.getItem('smart_buyer_gemini_key');
+              if (activeKey) {
+                const data = await searchProductsWithAi(searchQuery, activeKey);
+                setSearchResult(data);
+              } else {
+                try {
+                  const response = await fetch(`/api/ai-search?q=${encodeURIComponent(searchQuery)}`);
+                  if (!response.ok) throw new Error("Network response was not ok");
+                  const data = await response.json();
+                  setSearchResult(data);
+                } catch (apiErr) {
+                  console.warn("Backend API not reachable. Performing client-side simulation:", apiErr.message);
+                  const fallback = searchProducts(searchQuery);
+                  setSearchResult(fallback);
+                }
+              }
             } catch (err) {
-              console.warn("Backend API not reachable. Performing client-side simulation:", err.message);
+              console.warn("Real-time AI search failed. Performing client-side simulation:", err.message);
               const fallback = searchProducts(searchQuery);
               setSearchResult(fallback);
             } finally {
@@ -181,12 +196,24 @@ export default function App() {
           if (step.status === "success") {
             setTimeout(async () => {
               try {
-                const response = await fetch(`/api/ai-search?q=${encodeURIComponent(queryText)}`);
-                if (!response.ok) throw new Error("Network response was not ok");
-                const data = await response.json();
-                setSearchResult(data);
+                const activeKey = localStorage.getItem('smart_buyer_gemini_key');
+                if (activeKey) {
+                  const data = await searchProductsWithAi(queryText, activeKey);
+                  setSearchResult(data);
+                } else {
+                  try {
+                    const response = await fetch(`/api/ai-search?q=${encodeURIComponent(queryText)}`);
+                    if (!response.ok) throw new Error("Network response was not ok");
+                    const data = await response.json();
+                    setSearchResult(data);
+                  } catch (apiErr) {
+                    console.warn("Backend API not reachable. Performing client-side simulation:", apiErr.message);
+                    const fallback = searchProducts(queryText);
+                    setSearchResult(fallback);
+                  }
+                }
               } catch (err) {
-                console.warn("Backend API not reachable. Performing client-side simulation:", err.message);
+                console.warn("Real-time AI search failed. Performing client-side simulation:", err.message);
                 const fallback = searchProducts(queryText);
                 setSearchResult(fallback);
               } finally {
@@ -272,9 +299,12 @@ export default function App() {
             Chrome Extension Demo
           </span>
         </nav>
-        <div>
+        <div className="flex items-center gap-3">
           <button className="chrome-ext-pill" onClick={() => setActiveTab('extension')}>
             <Globe size={14} /> Add to Chrome
+          </button>
+          <button className="settings-gear-btn" onClick={() => setIsSettingsOpen(true)} title="AI Settings">
+            <Settings size={18} />
           </button>
         </div>
       </header>
@@ -296,6 +326,13 @@ export default function App() {
                       <span>🇮🇳</span> Geofocused (Rupees ₹ & GST)
                     </div>
                   </div>
+                  
+                  {!apiKey && (
+                    <div className="settings-warning-banner glass animate-fade-in" onClick={() => setIsSettingsOpen(true)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem', borderRadius: '12px', fontSize: '0.8rem', background: 'rgba(99, 102, 241, 0.08)', border: '1px dashed rgba(99, 102, 241, 0.3)', margin: '0 auto 1.5rem auto', maxWidth: '650px', justifyContent: 'center' }}>
+                      <Info size={14} className="text-indigo animate-pulse" />
+                      <span>Running in <strong>offline simulator mode</strong>. Click here to add your <strong>Gemini API Key</strong> & enable live web price grounding on GitHub Pages!</span>
+                    </div>
+                  )}
                   
                   <h1 className="search-title">Shop Smarter in India. Compare Real-Time Prices.</h1>
                   
@@ -733,6 +770,64 @@ export default function App() {
           productName={searchResult.productName}
           currentPrice={searchResult.offers[0].finalTotal}
         />
+      )}
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="alert-modal-overlay">
+          <div className="alert-modal-content glass">
+            <button className="alert-modal-close" onClick={() => setIsSettingsOpen(false)}>
+              <X size={16} />
+            </button>
+            <div className="alert-modal-header">
+              <Settings size={20} className="text-indigo" />
+              <h3>Smart Buyer AI Settings</h3>
+            </div>
+            <div className="alert-modal-body">
+              <p className="text-secondary text-sm mb-4">
+                To run the e-commerce comparison engine in real-time on a static hosting service like GitHub Pages, add your Google Gemini API Key. The key is stored securely in your local browser and is never sent to any external server.
+              </p>
+              
+              <div className="form-group mb-4">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-2">
+                  Gemini API Key
+                </label>
+                <input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={apiKey}
+                  onChange={(e) => {
+                    setApiKey(e.target.value);
+                    localStorage.setItem('smart_buyer_gemini_key', e.target.value);
+                  }}
+                  className="alert-input"
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff' }}
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                {apiKey && (
+                  <button
+                    onClick={() => {
+                      setApiKey('');
+                      localStorage.removeItem('smart_buyer_gemini_key');
+                    }}
+                    className="alert-submit-btn"
+                    style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
+                  >
+                    Clear Key
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="alert-submit-btn"
+                >
+                  Save & Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

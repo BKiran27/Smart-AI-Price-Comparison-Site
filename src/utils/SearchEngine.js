@@ -1,3 +1,5 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 // Smart Shopping AI Mock Search Engine Utility (Indian Retailers Edition)
 
 // Pre-seeded database for popular products in India (Prices in INR)
@@ -463,4 +465,70 @@ export function getTrendingDeals() {
       sparkline: [46000, 44000, 42000, 40000, 38500, 36900, 35999]
     }
   ];
+}
+
+export async function searchProductsWithAi(query, apiKey) {
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash", // or gemini-1.5-flash
+      tools: [{ googleSearch: {} }] // Enable Google Search Grounding
+    });
+
+    const prompt = `
+You are a live e-commerce price comparison engine. Search the web for real-time prices of "${query}" in India in Indian Rupees (₹).
+Ground your results in real-time online offers from major Indian stores: Amazon.in, Flipkart, Reliance Digital, Croma, and Vijay Sales.
+
+You MUST respond strictly in a valid JSON format. Do not output any markdown code blocks (like \`\`\`json) or any other text before/after the JSON. Just return the raw JSON matching this schema:
+
+{
+  "productName": "Exact name of the product",
+  "category": "Product category",
+  "description": "Short overview description of the product",
+  "specs": {
+    "Key Spec 1": "value",
+    "Key Spec 2": "value"
+  },
+  "offers": [
+    {
+      "storeId": "amazon_in | flipkart | reliance_digital | croma | vijay_sales",
+      "storeName": "Name of store (e.g. Amazon.in)",
+      "logoColor": "Hex color code for store brand logo (e.g. #FF9900)",
+      "textColor": "#FFFFFF",
+      "basePrice": 120000, 
+      "shipping": 0,
+      "tax": 21600,
+      "coupon": {
+        "code": "COUPONCODE",
+        "discount": 1000
+      },
+      "finalTotal": 140600,
+      "rating": 4.5,
+      "reviews": 1200,
+      "shippingSpeed": "1-2 Days",
+      "returnPolicy": "7 days return",
+      "warranty": "1 Year Warranty",
+      "sparkline": [121000, 120500, 120000, 119800, 119500, 119000, 120000],
+      "link": "https://direct-product-link.com"
+    }
+  ],
+  "priceHistory": {
+    "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+    "prices": [125000, 124000, 122000, 121000, 119000, 120000]
+  },
+  "aiSummary": "Markdown report with sections: \\n### AI Shopper Analysis Report\\n🤖 **AI Recommendation:** (State best deal, cheapest store, base price, tax, delivery)\\n💰 **Savings Potential:** (Buying cheapest vs most expensive saves ₹...)\\n📊 **Budget & Deal Check:** (State if budget constraints are met)\\n🎫 **Coupon Deductions Auto-Applied:** (List any active coupons found)\\n🚚 **Delivery & Trust Highlights:** (Fastest shipping and return policies details)\\n🔒 *Source verification:* Live Google Search Grounded Search"
+}
+
+Ensure all prices are numbers (no commas or ₹ symbols inside the price properties). Sort the offers array with the cheapest finalTotal first. Do not use dummy data if actual data is available via Google Search.
+`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    // Strip markdown code fences if Gemini puts them in
+    const jsonText = text.replace(/^```json/i, '').replace(/```$/i, '').trim();
+    return JSON.parse(jsonText);
+  } catch (err) {
+    console.error("Gemini Search Grounding failed:", err);
+    throw err;
+  }
 }
