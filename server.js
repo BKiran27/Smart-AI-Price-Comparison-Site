@@ -1,5 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { getAggregatedSearch, getAiSynthesizedSearch } from './scrapers.js';
 
 const app = express();
@@ -69,6 +72,19 @@ app.get('/api/ai-search', async (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: "healthy", timestamp: new Date() });
 });
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static assets in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'dist')));
+  app.get('*', (req, res, next) => {
+    // If it's an API request, let the other routes handle it
+    if (req.url.startsWith('/api')) return next();
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  });
+}
 
 // Start listening
 app.listen(PORT, () => {

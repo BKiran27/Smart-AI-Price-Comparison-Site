@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Pre-seeded database for popular products to anchor fallback pricing
 const SEED_PRODUCT_DB = {
@@ -621,8 +622,39 @@ export async function getAiSynthesizedSearch(rawQuery) {
 
   const priceDiff = Math.round(mostExpensive.finalTotal - cheapest.finalTotal);
   
-  const aiSummary = `### AI Shopper Analysis Report
+  let aiSummary = '';
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `
+You are an expert AI Shopping Assistant. Provide a short, structured Markdown report comparing the following real-time Indian e-commerce search results for "${data.productName}".
+Budget parsed: ${maxBudget ? maxBudget : 'None'}
+
+Data:
+${JSON.stringify(offers, null, 2)}
+
+Format your response strictly with these sections:
+### AI Shopper Analysis Report
+🤖 **AI Recommendation:** (State the best deal and cheapest store, with base price, tax, delivery)
+💰 **Savings Potential:** (How much is saved by buying cheapest vs most expensive)
+📊 **Budget & Deal Check:** (If budget exists, mention if it's met. Otherwise give a general verdict)
+🎫 **Coupon Deductions Auto-Applied:** (List any active coupons)
+🚚 **Delivery & Trust Highlights:** (Mention fastest delivery and best returns from the data)
+🔒 *Source verification:* Live crawled data retrieved directly from stores!
+
+Do NOT use placeholders. Generate the content dynamically based on the exact JSON provided above. Use ₹ symbols and Indian commas (e.g., 1,00,000). Keep the text punchy.`;
+      
+      const result = await model.generateContent(prompt);
+      aiSummary = result.response.text();
+    } catch (e) {
+      console.warn("Gemini API Error. Falling back to template.", e.message);
+    }
+  }
   
+  if (!aiSummary) {
+    aiSummary = `### AI Shopper Analysis Report
+    
 🤖 **AI Recommendation:**
 We scanned the top online stores in India. The cheapest direct offer for **"${data.productName}"** is at **${cheapest.storeName}** with a final checkout cost of **₹${cheapest.finalTotal.toLocaleString('en-IN')}** (Base price: ₹${cheapest.basePrice.toLocaleString('en-IN')}, GST: ₹${cheapest.tax.toLocaleString('en-IN')}, Delivery: ${cheapest.shipping === 0 ? 'FREE' : `₹${cheapest.shipping}`}).
 
@@ -640,6 +672,7 @@ ${couponText}
 • **Easiest Exchanges:** **${offers.find(o => o.storeId === 'croma')?.storeName || 'Croma'}** offers a **14-day brand exchange window** for secure returns.
 
 🔒 *Source verification:* ${sourceText}`;
+  }
 
   return {
     ...data,

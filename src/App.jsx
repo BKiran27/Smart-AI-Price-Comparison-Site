@@ -130,7 +130,7 @@ export default function App() {
         if (step.status === "success") {
           setTimeout(async () => {
             try {
-              const response = await fetch(`http://localhost:5000/api/ai-search?q=${encodeURIComponent(searchQuery)}`);
+              const response = await fetch(`/api/ai-search?q=${encodeURIComponent(searchQuery)}`);
               if (!response.ok) throw new Error("Network response was not ok");
               const data = await response.json();
               setSearchResult(data);
@@ -181,7 +181,7 @@ export default function App() {
           if (step.status === "success") {
             setTimeout(async () => {
               try {
-                const response = await fetch(`http://localhost:5000/api/ai-search?q=${encodeURIComponent(queryText)}`);
+                const response = await fetch(`/api/ai-search?q=${encodeURIComponent(queryText)}`);
                 if (!response.ok) throw new Error("Network response was not ok");
                 const data = await response.json();
                 setSearchResult(data);
