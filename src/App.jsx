@@ -6,7 +6,11 @@ import {
   Settings
 } from 'lucide-react';
 
-import { searchProducts, getTrendingDeals, searchProductsWithAi } from './utils/SearchEngine';
+import { 
+  searchProducts, getTrendingDeals, searchProductsWithAi,
+  searchProductsList, searchProductsListWithAi,
+  getProductDetails, getProductDetailsWithAi
+} from './utils/SearchEngine';
 import PriceChart from './components/PriceChart';
 import AiAssistant from './components/AiAssistant';
 import ComparisonMatrix from './components/ComparisonMatrix';
@@ -88,8 +92,16 @@ export default function App() {
   const [sortOption, setSortOption] = useState('cheapest'); // 'cheapest', 'rating', 'shipping'
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [trendingDeals, setTrendingDeals] = useState([]);
+  const [searchResultsList, setSearchResultsList] = useState(null);
   const [apiKey, setApiKey] = useState(localStorage.getItem('smart_buyer_gemini_key') || '');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  // Sidebar filters states
+  const [selectedBrands, setSelectedBrands] = useState([]);
+  const [minPriceFilter, setMinPriceFilter] = useState('');
+  const [maxPriceFilter, setMaxPriceFilter] = useState('');
+  const [minRatingFilter, setMinRatingFilter] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   // Fetch trending deals on mount
   useEffect(() => {
@@ -103,9 +115,17 @@ export default function App() {
 
     setIsLoading(true);
     setSearchResult(null);
+    setSearchResultsList(null);
     setSelectedOffers([]);
     setScrapingLogs([]);
     setActiveTab('search');
+
+    // Reset filters
+    setSelectedBrands([]);
+    setMinPriceFilter('');
+    setMaxPriceFilter('');
+    setMinRatingFilter(0);
+    setSelectedCategory('All');
 
     // Sequence of mock scraping logs
     const logSteps = [
@@ -135,24 +155,16 @@ export default function App() {
             try {
               const activeKey = localStorage.getItem('smart_buyer_gemini_key');
               if (activeKey) {
-                const data = await searchProductsWithAi(searchQuery, activeKey);
-                setSearchResult(data);
+                const listData = await searchProductsListWithAi(searchQuery, activeKey);
+                setSearchResultsList(listData);
               } else {
-                try {
-                  const response = await fetch(`/api/ai-search?q=${encodeURIComponent(searchQuery)}`);
-                  if (!response.ok) throw new Error("Network response was not ok");
-                  const data = await response.json();
-                  setSearchResult(data);
-                } catch (apiErr) {
-                  console.warn("Backend API not reachable. Performing client-side simulation:", apiErr.message);
-                  const fallback = searchProducts(searchQuery);
-                  setSearchResult(fallback);
-                }
+                const listData = searchProductsList(searchQuery);
+                setSearchResultsList(listData);
               }
             } catch (err) {
               console.warn("Real-time AI search failed. Performing client-side simulation:", err.message);
-              const fallback = searchProducts(searchQuery);
-              setSearchResult(fallback);
+              const listData = searchProductsList(searchQuery);
+              setSearchResultsList(listData);
             } finally {
               setIsLoading(false);
             }
@@ -169,9 +181,17 @@ export default function App() {
       // Small timeout to allow state to set, then submit
       setIsLoading(true);
       setSearchResult(null);
+      setSearchResultsList(null);
       setSelectedOffers([]);
       setScrapingLogs([]);
       setActiveTab('search');
+
+      // Reset filters
+      setSelectedBrands([]);
+      setMinPriceFilter('');
+      setMaxPriceFilter('');
+      setMinRatingFilter(0);
+      setSelectedCategory('All');
 
       const logSteps = [
         { text: "Initializing AI shortcut search pipeline...", delay: 150, status: "working" },
@@ -198,24 +218,16 @@ export default function App() {
               try {
                 const activeKey = localStorage.getItem('smart_buyer_gemini_key');
                 if (activeKey) {
-                  const data = await searchProductsWithAi(queryText, activeKey);
-                  setSearchResult(data);
+                  const listData = await searchProductsListWithAi(queryText, activeKey);
+                  setSearchResultsList(listData);
                 } else {
-                  try {
-                    const response = await fetch(`/api/ai-search?q=${encodeURIComponent(queryText)}`);
-                    if (!response.ok) throw new Error("Network response was not ok");
-                    const data = await response.json();
-                    setSearchResult(data);
-                  } catch (apiErr) {
-                    console.warn("Backend API not reachable. Performing client-side simulation:", apiErr.message);
-                    const fallback = searchProducts(queryText);
-                    setSearchResult(fallback);
-                  }
+                  const listData = searchProductsList(queryText);
+                  setSearchResultsList(listData);
                 }
               } catch (err) {
                 console.warn("Real-time AI search failed. Performing client-side simulation:", err.message);
-                const fallback = searchProducts(queryText);
-                setSearchResult(fallback);
+                const listData = searchProductsList(queryText);
+                setSearchResultsList(listData);
               } finally {
                 setIsLoading(false);
               }
@@ -224,6 +236,56 @@ export default function App() {
         }, step.delay);
       });
     }, 50);
+  };
+
+  const handleSelectProduct = (productName) => {
+    setIsLoading(true);
+    setSearchResult(null);
+    setSelectedOffers([]);
+    setScrapingLogs([]);
+    setActiveTab('search');
+
+    const logSteps = [
+      { text: `Crawling live pricing listings for "${productName}"...`, delay: 300, status: "working" },
+      { text: "Querying Amazon.in, Flipkart, Croma, Vijay Sales, Reliance Digital...", delay: 800, status: "working" },
+      { text: "Synthesizing AI Shopper Analysis Report...", delay: 1400, status: "working" },
+      { text: "Price index analysis complete!", delay: 1800, status: "success" }
+    ];
+
+    logSteps.forEach((step) => {
+      setTimeout(() => {
+        setScrapingLogs((prev) => [
+          ...prev,
+          {
+            id: Math.random().toString(),
+            time: new Date().toLocaleTimeString([], { hour12: false }),
+            text: step.text,
+            status: step.status
+          }
+        ]);
+
+        if (step.status === "success") {
+          setTimeout(async () => {
+            try {
+              const activeKey = localStorage.getItem('smart_buyer_gemini_key');
+              if (activeKey) {
+                const details = await getProductDetailsWithAi(productName, searchQuery, activeKey);
+                setSearchResult(details);
+              } else {
+                const details = getProductDetails(productName, searchQuery);
+                setSearchResult(details);
+              }
+            } catch (err) {
+              console.warn("Product details retrieval failed:", err.message);
+              const details = getProductDetails(productName, searchQuery);
+              setSearchResult(details);
+            } finally {
+              setIsLoading(false);
+            }
+          }, 200);
+        }
+      }, step.delay);
+    });
   };
 
   // Comparison list managers
@@ -266,6 +328,38 @@ export default function App() {
     }
     return items;
   };
+
+  // Get all unique brands and categories from results for the filters checklist
+  const uniqueBrands = searchResultsList 
+    ? [...new Set(searchResultsList.map(p => p.brand))].filter(Boolean) 
+    : [];
+
+  const uniqueCategories = searchResultsList 
+    ? [...new Set(searchResultsList.map(p => p.category))].filter(Boolean) 
+    : [];
+
+  const filteredProducts = (searchResultsList || []).filter(product => {
+    // Brand Filter
+    if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) {
+      return false;
+    }
+    // Category Filter
+    if (selectedCategory !== 'All' && product.category !== selectedCategory) {
+      return false;
+    }
+    // Price Filter
+    if (minPriceFilter && product.minPrice < parseInt(minPriceFilter, 10)) {
+      return false;
+    }
+    if (maxPriceFilter && product.maxPrice > parseInt(maxPriceFilter, 10)) {
+      return false;
+    }
+    // Rating Filter
+    if (minRatingFilter && product.rating < minRatingFilter) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div className="app-container">
@@ -316,7 +410,7 @@ export default function App() {
           {activeTab === 'search' && (
             <>
               {/* Home/Initial Search Hero Screen */}
-              {!searchResult && !isLoading && (
+              {!searchResultsList && !searchResult && !isLoading && (
                 <div className="search-hero">
                   <div className="flex flex-wrap gap-2.5 mb-4 justify-center">
                     <div className="badge flex items-center gap-1.5 text-xs text-indigo glass px-4 py-2 rounded-full font-semibold">
@@ -364,6 +458,174 @@ export default function App() {
                 </div>
               )}
 
+              {/* Multi-product Google Shopping Results View */}
+              {searchResultsList && !searchResult && !isLoading && (
+                <div className="shopping-results-view animate-fade-in">
+                  <div className="shopping-results-header">
+                    <button className="results-back-btn" onClick={() => { setSearchResultsList(null); setSearchQuery(''); }}>
+                      <ArrowLeft size={14} /> Clear Search
+                    </button>
+                    <h2>Shopping Results for "{searchQuery}"</h2>
+                    <p className="text-secondary text-sm">{filteredProducts.length} products found matching your filters</p>
+                  </div>
+
+                  <div className="shopping-layout-body">
+                    {/* Left Sidebar Filters */}
+                    <aside className="filters-sidebar glass">
+                      <div className="filter-group">
+                        <h4>Category</h4>
+                        <div className="filter-options">
+                          <button 
+                            className={`category-filter-btn ${selectedCategory === 'All' ? 'active' : ''}`}
+                            onClick={() => setSelectedCategory('All')}
+                          >
+                            All Categories
+                          </button>
+                          {uniqueCategories.map(cat => (
+                            <button
+                              key={cat}
+                              className={`category-filter-btn ${selectedCategory === cat ? 'active' : ''}`}
+                              onClick={() => setSelectedCategory(cat)}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="filter-group">
+                        <h4>Brands</h4>
+                        <div className="filter-options">
+                          {uniqueBrands.length > 0 ? (
+                            uniqueBrands.map(brand => {
+                              const isChecked = selectedBrands.includes(brand);
+                              return (
+                                <label key={brand} className="filter-checkbox-label">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedBrands(prev => [...prev, brand]);
+                                      } else {
+                                        setSelectedBrands(prev => prev.filter(b => b !== brand));
+                                      }
+                                    }}
+                                  />
+                                  <span>{brand}</span>
+                                </label>
+                              );
+                            })
+                          ) : (
+                            <span className="text-muted text-xs">No brands found</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="filter-group">
+                        <h4>Price Range (₹)</h4>
+                        <div className="price-range-inputs">
+                          <input
+                            type="number"
+                            placeholder="Min"
+                            value={minPriceFilter}
+                            onChange={(e) => setMinPriceFilter(e.target.value)}
+                            className="price-filter-input"
+                          />
+                          <span className="price-separator">-</span>
+                          <input
+                            type="number"
+                            placeholder="Max"
+                            value={maxPriceFilter}
+                            onChange={(e) => setMaxPriceFilter(e.target.value)}
+                            className="price-filter-input"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="filter-group">
+                        <h4>Customer Rating</h4>
+                        <div className="filter-options">
+                          {[4, 3, 2].map(stars => (
+                            <label key={stars} className="filter-radio-label">
+                              <input
+                                type="radio"
+                                name="rating-filter"
+                                checked={minRatingFilter === stars}
+                                onChange={() => setMinRatingFilter(stars)}
+                              />
+                              <span>⭐ {stars}★ & up</span>
+                            </label>
+                          ))}
+                          <label className="filter-radio-label">
+                            <input
+                              type="radio"
+                              name="rating-filter"
+                              checked={minRatingFilter === 0}
+                              onChange={() => setMinRatingFilter(0)}
+                            />
+                            <span>All Ratings</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {(selectedBrands.length > 0 || minPriceFilter || maxPriceFilter || minRatingFilter > 0 || selectedCategory !== 'All') && (
+                        <button 
+                          className="clear-filters-btn"
+                          onClick={() => {
+                            setSelectedBrands([]);
+                            setMinPriceFilter('');
+                            setMaxPriceFilter('');
+                            setMinRatingFilter(0);
+                            setSelectedCategory('All');
+                          }}
+                        >
+                          Clear Filters
+                        </button>
+                      )}
+                    </aside>
+
+                    {/* Main Products Grid */}
+                    <div className="products-grid-container">
+                      {filteredProducts.length > 0 ? (
+                        <div className="products-grid">
+                          {filteredProducts.map(product => (
+                            <div key={product.id} className="product-grid-card glass">
+                              <div className="product-card-badge">{product.category}</div>
+                              <h3 className="product-card-title">{product.name}</h3>
+                              <p className="product-card-desc">{product.description}</p>
+                              
+                              <div className="product-card-meta">
+                                <span className="product-card-brand">{product.brand}</span>
+                                <span className="product-card-rating">⭐ {product.rating} <span className="text-secondary text-xs">({product.reviewsCount})</span></span>
+                              </div>
+
+                              <div className="product-card-footer">
+                                <div className="product-card-pricing">
+                                  <div className="price-label">Starts at</div>
+                                  <div className="price-range-text">₹{product.minPrice.toLocaleString('en-IN')}</div>
+                                </div>
+                                <button 
+                                  className="product-compare-btn"
+                                  onClick={() => handleSelectProduct(product.name)}
+                                >
+                                  Compare Deals <ArrowUpRight size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="no-products-found glass">
+                          <h3>No Products Found</h3>
+                          <p className="text-secondary text-sm">Try widening your search or clearing active filters.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Scraping Terminal Screen while loading */}
               {isLoading && (
                 <div className="flex flex-col items-center justify-center py-10">
@@ -395,8 +657,15 @@ export default function App() {
                 <div className="results-page-container">
                   {/* Results Sub-header */}
                   <div className="results-header-box glass">
-                    <button className="results-back-btn" onClick={() => { setSearchResult(null); setSearchQuery(''); }}>
-                      <ArrowLeft size={14} /> Back to home
+                    <button className="results-back-btn" onClick={() => {
+                      if (searchResultsList) {
+                        setSearchResult(null);
+                      } else {
+                        setSearchResult(null);
+                        setSearchQuery('');
+                      }
+                    }}>
+                      <ArrowLeft size={14} /> {searchResultsList ? 'Back to results' : 'Back to home'}
                     </button>
                     <div className="flex justify-between items-start flex-wrap gap-4">
                       <div>

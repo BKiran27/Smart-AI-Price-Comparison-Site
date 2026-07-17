@@ -532,3 +532,116 @@ Ensure all prices are numbers (no commas or ₹ symbols inside the price propert
     throw err;
   }
 }
+
+export function searchProductsList(rawQuery) {
+  const query = rawQuery.toLowerCase().trim();
+  if (!query) return [];
+
+  // Find matching items in PRODUCT_DATABASE
+  const matches = [];
+  Object.keys(PRODUCT_DATABASE).forEach(key => {
+    if (key.includes(query) || query.includes(key)) {
+      const prod = PRODUCT_DATABASE[key];
+      // Generate min/max price by running searchProducts
+      const details = searchProducts(prod.name);
+      const prices = details.offers.map(o => o.finalTotal);
+      matches.push({
+        id: key,
+        name: prod.name,
+        brand: prod.name.split(" ")[0], // first word as brand
+        category: prod.category,
+        minPrice: Math.min(...prices),
+        maxPrice: Math.max(...prices),
+        rating: details.offers[0].rating,
+        reviewsCount: details.offers[0].reviews,
+        description: prod.description,
+        specs: prod.specs
+      });
+    }
+  });
+
+  if (matches.length > 0) return matches;
+
+  // Generate dynamic products if no matching items
+  const brandList = ["Samsung", "Sony", "Apple", "LG", "Dyson", "Philips", "OnePlus", "Xiaomi", "Bosch", "HP", "Dell"];
+  const queryTitle = rawQuery.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  
+  // Choose brand based on query or default
+  let detectedBrand = brandList.find(b => query.includes(b.toLowerCase())) || "Premium";
+  let cleanItem = queryTitle.replace(new RegExp(detectedBrand, 'i'), '').trim();
+  if (!cleanItem) cleanItem = "Gadget";
+
+  // Create 3 dynamic tiers: Premium, Mid-range, Budget
+  const tiers = [
+    { name: `${detectedBrand} ${cleanItem} Ultra Pro Max`, priceBase: 85000 },
+    { name: `${detectedBrand} ${cleanItem} Plus`, priceBase: 49000 },
+    { name: `${detectedBrand} ${cleanItem} Lite`, priceBase: 24000 }
+  ];
+
+  return tiers.map((tier, idx) => {
+    const seed = seededRandom(tier.name);
+    const basePrice = Math.round(tier.priceBase * (0.9 + seed * 0.2));
+    const details = searchProducts(tier.name);
+    const prices = details.offers.map(o => o.finalTotal);
+
+    return {
+      id: `dynamic-${query}-${idx}`,
+      name: tier.name,
+      brand: detectedBrand,
+      category: "General",
+      minPrice: Math.min(...prices),
+      maxPrice: Math.max(...prices),
+      rating: Math.round((4.2 + seed * 0.7) * 10) / 10,
+      reviewsCount: Math.round(150 + seed * 850),
+      description: `State-of-the-art ${tier.name} designed with cutting edge technology for high efficiency and reliability in Indian environments.`,
+      specs: details.specs
+    };
+  });
+}
+
+export async function searchProductsListWithAi(query, apiKey) {
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      tools: [{ googleSearch: {} }]
+    });
+
+    const prompt = `
+You are a live e-commerce search engine. Search the web for matching products available in India for the query "${query}".
+Return a list of 3 to 5 matching products.
+
+You MUST respond strictly in a valid JSON format. Do not output any markdown code blocks (like \`\`\`json) or any other text before/after the JSON. Just return the raw JSON matching this schema:
+
+[
+  {
+    "id": "unique-slug-id",
+    "name": "Full product name (e.g. Sony WH-1000XM5 Wireless Headphones)",
+    "brand": "Brand name (e.g. Sony)",
+    "category": "Electronics | Home & Kitchen | etc.",
+    "minPrice": 26990, 
+    "maxPrice": 29990,
+    "rating": 4.6,
+    "reviewsCount": 3500,
+    "description": "Short product description."
+  }
+]
+`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    const jsonText = text.replace(/^```json/i, '').replace(/```$/i, '').trim();
+    return JSON.parse(jsonText);
+  } catch (err) {
+    console.error("Gemini list search failed, falling back to local list search:", err);
+    return searchProductsList(query);
+  }
+}
+
+export function getProductDetails(productName, rawQuery) {
+  return searchProducts(productName);
+}
+
+export async function getProductDetailsWithAi(productName, rawQuery, apiKey) {
+  return searchProductsWithAi(productName, apiKey);
+}
