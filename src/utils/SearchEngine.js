@@ -554,6 +554,7 @@ export function searchProductsList(rawQuery) {
         maxPrice: Math.max(...prices),
         rating: details.offers[0].rating,
         reviewsCount: details.offers[0].reviews,
+        storeCount: details.offers.length,
         description: prod.description,
         specs: prod.specs
       });
@@ -593,6 +594,7 @@ export function searchProductsList(rawQuery) {
       maxPrice: Math.max(...prices),
       rating: Math.round((4.2 + seed * 0.7) * 10) / 10,
       reviewsCount: Math.round(150 + seed * 850),
+      storeCount: details.offers.length,
       description: `State-of-the-art ${tier.name} designed with cutting edge technology for high efficiency and reliability in Indian environments.`,
       specs: details.specs
     };

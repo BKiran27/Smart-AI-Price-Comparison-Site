@@ -1,62 +1,95 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* Colors */
-  --bg-deep: #050811;
-  --bg-dashboard: #090d16;
-  --bg-card: rgba(17, 24, 39, 0.6);
-  --bg-card-hover: rgba(22, 32, 54, 0.85);
+  /* Colors - Background */
+  --bg-deep: #07090f;
+  --bg-surface: #0c1017;
+  --bg-card: rgba(15, 20, 32, 0.75);
+  --bg-card-hover: rgba(20, 28, 48, 0.9);
   
-  --border-glass: rgba(255, 255, 255, 0.07);
-  --border-glass-hover: rgba(255, 255, 255, 0.15);
+  /* Colors - Borders */
+  --border-glass: rgba(255, 255, 255, 0.06);
+  --border-glass-hover: rgba(255, 255, 255, 0.12);
   
-  --color-indigo: #6366f1;
-  --color-indigo-glow: rgba(99, 102, 241, 0.25);
-  --color-purple: #a855f7;
-  --color-purple-glow: rgba(168, 85, 247, 0.25);
-  --color-teal: #14b8a6;
-  
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  
-  --color-green: #10b981;
+  /* Colors - Brand & Status */
+  --color-primary: #6366f1;
+  --color-primary-glow: rgba(99, 102, 241, 0.2);
+  --color-accent: #a855f7;
+  --color-lowest: #10b981;
+  --color-lowest-glow: rgba(16, 185, 129, 0.15);
+  --color-savings: #34d399;
   --color-red: #ef4444;
   --color-yellow: #f59e0b;
   
-  /* Layout */
-  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Colors - Text */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
   
-  --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.15);
-  --shadow-glow-purple: 0 0 25px rgba(168, 85, 247, 0.15);
-  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  /* Typography */
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  
+  /* Shadows & Glows */
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.12);
+  --shadow-card: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
+  --shadow-lowest: 0 0 20px rgba(16, 185, 129, 0.15);
+  
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 }
 
 /* Global Reset */
-* {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 body {
+  font-family: var(--font-body);
   background-color: var(--bg-deep);
   color: var(--text-primary);
-  font-family: var(--font-body);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-  line-height: 1.5;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 0.5em;
+  line-height: 1.2;
 }
 
-/* Scrollbar Customization */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+input, select, textarea {
+  outline: none;
+}
+
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -67,75 +100,115 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  background: var(--border-glass);
+  border-radius: var(--radius-xl);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.4);
+  background: var(--border-glass-hover);
 }
 
-/* Utility Classes */
+/* Utilities */
 .glass {
   background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-glass);
-  box-shadow: var(--shadow-card);
 }
 
-.text-green { color: var(--color-green); }
-.text-red { color: var(--color-red); }
-.text-indigo { color: var(--color-indigo); }
-.text-purple { color: var(--color-purple); }
-.text-yellow { color: var(--color-yellow); }
+/* Color Utilities */
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+.bg-deep { background-color: var(--bg-deep); }
+.color-primary { color: var(--color-primary); }
 
+/* Typography Utilities */
+.font-heading { font-family: var(--font-heading); }
+.font-body { font-family: var(--font-body); }
+.font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
+
+/* Flex & Layout Utilities */
 .flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
 .justify-center { justify-content: center; }
 .gap-1 { gap: 0.25rem; }
-.gap-1\.5 { gap: 0.375rem; }
 .gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 0.75rem; }
-.font-semibold { font-weight: 500; }
-.font-bold { font-weight: 700; }
-.text-xs { font-size: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.gap-5 { gap: 1.25rem; }
+.gap-6 { gap: 1.5rem; }
 
-/* Micro-animations */
+/* Keyframe Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 @keyframes pulseGlow {
   0%, 100% {
-    opacity: 0.5;
+    opacity: 1;
     transform: scale(1);
+    box-shadow: 0 0 10px var(--color-primary-glow);
   }
   50% {
     opacity: 0.8;
     transform: scale(1.05);
+    box-shadow: 0 0 20px var(--color-primary-glow);
   }
 }
 
-@keyframes bounceSlow {
-  0%, 100% {
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
     transform: translateY(0);
   }
-  50% {
-    transform: translateY(-6px);
-  }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Animation Classes */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
 }
 
-.animate-bounce-slow {
-  animation: bounceSlow 3s infinite ease-in-out;
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-pulse-glow {
-  animation: pulseGlow 4s infinite ease-in-out;
+  animation: pulseGlow 2s infinite ease-in-out;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 37%,
+    rgba(255, 255, 255, 0.03) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
 }

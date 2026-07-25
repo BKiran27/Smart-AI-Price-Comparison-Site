@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, ArrowLeft, ExternalLink, TrendingDown, Check, 
-  Plus, X, ChevronDown, ChevronUp, Globe, Scale, 
+  Plus, X, ChevronDown, ChevronUp, Scale, 
   Bot, Sparkles, Bell, ArrowUpRight, Award, Flame, Info,
-  Settings
+  Settings, SlidersHorizontal, Tag, Star, ShoppingBag
 } from 'lucide-react';
 
 import { 
@@ -81,20 +81,76 @@ function formatMarkdown(text) {
   });
 }
 
+// Skeleton loading component
+function SkeletonLoader() {
+  return (
+    <div className="skeleton-container animate-fade-in">
+      <div className="skeleton-header">
+        <div className="skeleton-line skeleton-lg" style={{ width: '60%' }}></div>
+        <div className="skeleton-line skeleton-sm" style={{ width: '40%', marginTop: '0.75rem' }}></div>
+      </div>
+      <div className="skeleton-grid">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="skeleton-card glass">
+            <div className="skeleton-line skeleton-sm" style={{ width: '30%' }}></div>
+            <div className="skeleton-line skeleton-lg" style={{ width: '80%', marginTop: '1rem' }}></div>
+            <div className="skeleton-line skeleton-md" style={{ width: '100%', marginTop: '0.5rem' }}></div>
+            <div className="skeleton-line skeleton-md" style={{ width: '65%', marginTop: '0.5rem' }}></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem' }}>
+              <div className="skeleton-line skeleton-lg" style={{ width: '35%' }}></div>
+              <div className="skeleton-line skeleton-md" style={{ width: '30%', borderRadius: '8px' }}></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Detail skeleton for price comparison view
+function DetailSkeletonLoader() {
+  return (
+    <div className="skeleton-container animate-fade-in">
+      <div className="skeleton-card glass" style={{ padding: '1.5rem' }}>
+        <div className="skeleton-line skeleton-sm" style={{ width: '120px' }}></div>
+        <div className="skeleton-line skeleton-lg" style={{ width: '70%', marginTop: '1rem' }}></div>
+        <div className="skeleton-line skeleton-md" style={{ width: '50%', marginTop: '0.5rem' }}></div>
+      </div>
+      {[1, 2, 3, 4, 5].map(i => (
+        <div key={i} className="skeleton-card glass" style={{ padding: '1.25rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="skeleton-line" style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0 }}></div>
+          <div style={{ flex: 1 }}>
+            <div className="skeleton-line skeleton-md" style={{ width: '40%' }}></div>
+            <div className="skeleton-line skeleton-sm" style={{ width: '25%', marginTop: '0.5rem' }}></div>
+          </div>
+          <div className="skeleton-line skeleton-lg" style={{ width: '100px' }}></div>
+          <div className="skeleton-line skeleton-md" style={{ width: '90px', borderRadius: '8px' }}></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const CATEGORY_CHIPS = ['All', 'Smartphones', 'Laptops', 'Audio', 'Gaming', 'Appliances', 'Cameras'];
+
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('search'); // 'search', 'comparison', 'extension'
+  const [activeTab, setActiveTab] = useState('search'); // 'search', 'comparison'
   const [isLoading, setIsLoading] = useState(false);
-  const [scrapingLogs, setScrapingLogs] = useState([]);
   const [searchResult, setSearchResult] = useState(null);
   const [selectedOffers, setSelectedOffers] = useState([]);
   const [expandedOfferId, setExpandedOfferId] = useState(null);
-  const [sortOption, setSortOption] = useState('cheapest'); // 'cheapest', 'rating', 'shipping'
+  const [sortOption, setSortOption] = useState('cheapest');
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [trendingDeals, setTrendingDeals] = useState([]);
   const [searchResultsList, setSearchResultsList] = useState(null);
   const [apiKey, setApiKey] = useState(localStorage.getItem('smart_buyer_gemini_key') || '');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  
+  // Collapsible section states
+  const [isAiReportOpen, setIsAiReportOpen] = useState(false);
+  const [isChartOpen, setIsChartOpen] = useState(false);
   
   // Sidebar filters states
   const [selectedBrands, setSelectedBrands] = useState([]);
@@ -102,23 +158,23 @@ export default function App() {
   const [maxPriceFilter, setMaxPriceFilter] = useState('');
   const [minRatingFilter, setMinRatingFilter] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [resultSortOption, setResultSortOption] = useState('relevance');
 
   // Fetch trending deals on mount
   useEffect(() => {
     setTrendingDeals(getTrendingDeals());
   }, []);
 
-  // Handle Search Submission
-  const handleSearchSubmit = (e) => {
-    if (e) e.preventDefault();
-    if (!searchQuery.trim()) return;
-
+  // Perform search (clean, no fake delays)
+  const performSearch = async (query) => {
+    if (!query.trim()) return;
+    
     setIsLoading(true);
     setSearchResult(null);
     setSearchResultsList(null);
     setSelectedOffers([]);
-    setScrapingLogs([]);
     setActiveTab('search');
+    setHasSearched(true);
 
     // Reset filters
     setSelectedBrands([]);
@@ -126,166 +182,66 @@ export default function App() {
     setMaxPriceFilter('');
     setMinRatingFilter(0);
     setSelectedCategory('All');
+    setResultSortOption('relevance');
 
-    // Sequence of mock scraping logs
-    const logSteps = [
-      { text: "Initializing real-time comparison engine...", delay: 200, status: "working" },
-      { text: "Connecting to Amazon.in API gateway...", delay: 500, status: "working" },
-      { text: "Bypassing Flipkart Cloudflare challenge proxy...", delay: 1000, status: "working" },
-      { text: "Scraping live HTML price details from Croma and Reliance Digital...", delay: 1500, status: "working" },
-      { text: "Querying active Indian coupon indexing services...", delay: 2000, status: "working" },
-      { text: "Compiling local GST and delivery fee estimates...", delay: 2300, status: "working" },
-      { text: "Comparison analysis completed successfully!", delay: 2700, status: "success" }
-    ];
-
-    logSteps.forEach((step) => {
-      setTimeout(() => {
-        setScrapingLogs((prev) => [
-          ...prev,
-          {
-            id: Math.random().toString(),
-            time: new Date().toLocaleTimeString([], { hour12: false }),
-            text: step.text,
-            status: step.status
-          }
-        ]);
-
-        if (step.status === "success") {
-          setTimeout(async () => {
-            try {
-              const activeKey = localStorage.getItem('smart_buyer_gemini_key');
-              if (activeKey) {
-                const listData = await searchProductsListWithAi(searchQuery, activeKey);
-                setSearchResultsList(listData);
-              } else {
-                const listData = searchProductsList(searchQuery);
-                setSearchResultsList(listData);
-              }
-            } catch (err) {
-              console.warn("Real-time AI search failed. Performing client-side simulation:", err.message);
-              const listData = searchProductsList(searchQuery);
-              setSearchResultsList(listData);
-            } finally {
-              setIsLoading(false);
-            }
-          }, 300);
-        }
-      }, step.delay);
-    });
+    try {
+      const activeKey = localStorage.getItem('smart_buyer_gemini_key');
+      if (activeKey) {
+        const listData = await searchProductsListWithAi(query, activeKey);
+        setSearchResultsList(listData);
+      } else {
+        // Small delay for UI feel
+        await new Promise(r => setTimeout(r, 600));
+        const listData = searchProductsList(query);
+        setSearchResultsList(listData);
+      }
+    } catch (err) {
+      console.warn("Search failed, using local data:", err.message);
+      const listData = searchProductsList(query);
+      setSearchResultsList(listData);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Quick shortcut search trigger from AI Chat or Deals
+  // Handle Search Submission
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    performSearch(searchQuery);
+  };
+
+  // Quick shortcut search trigger
   const triggerQuickSearch = (queryText) => {
     setSearchQuery(queryText);
-    setTimeout(() => {
-      // Small timeout to allow state to set, then submit
-      setIsLoading(true);
-      setSearchResult(null);
-      setSearchResultsList(null);
-      setSelectedOffers([]);
-      setScrapingLogs([]);
-      setActiveTab('search');
-
-      // Reset filters
-      setSelectedBrands([]);
-      setMinPriceFilter('');
-      setMaxPriceFilter('');
-      setMinRatingFilter(0);
-      setSelectedCategory('All');
-
-      const logSteps = [
-        { text: "Initializing AI shortcut search pipeline...", delay: 150, status: "working" },
-        { text: "Connecting to e-commerce scrapers...", delay: 400, status: "working" },
-        { text: "Analyzing competitor price lists...", delay: 800, status: "working" },
-        { text: "Applying auto-coupon deductions...", delay: 1200, status: "working" },
-        { text: "Scrape analysis completed!", delay: 1500, status: "success" }
-      ];
-
-      logSteps.forEach((step) => {
-        setTimeout(() => {
-          setScrapingLogs((prev) => [
-            ...prev,
-            {
-              id: Math.random().toString(),
-              time: new Date().toLocaleTimeString([], { hour12: false }),
-              text: step.text,
-              status: step.status
-            }
-          ]);
-
-          if (step.status === "success") {
-            setTimeout(async () => {
-              try {
-                const activeKey = localStorage.getItem('smart_buyer_gemini_key');
-                if (activeKey) {
-                  const listData = await searchProductsListWithAi(queryText, activeKey);
-                  setSearchResultsList(listData);
-                } else {
-                  const listData = searchProductsList(queryText);
-                  setSearchResultsList(listData);
-                }
-              } catch (err) {
-                console.warn("Real-time AI search failed. Performing client-side simulation:", err.message);
-                const listData = searchProductsList(queryText);
-                setSearchResultsList(listData);
-              } finally {
-                setIsLoading(false);
-              }
-            }, 200);
-          }
-        }, step.delay);
-      });
-    }, 50);
+    performSearch(queryText);
   };
 
-  const handleSelectProduct = (productName) => {
+  // Drill-down to single product detail
+  const handleSelectProduct = async (productName) => {
     setIsLoading(true);
     setSearchResult(null);
     setSelectedOffers([]);
-    setScrapingLogs([]);
     setActiveTab('search');
+    setIsAiReportOpen(false);
+    setIsChartOpen(false);
 
-    const logSteps = [
-      { text: `Crawling live pricing listings for "${productName}"...`, delay: 300, status: "working" },
-      { text: "Querying Amazon.in, Flipkart, Croma, Vijay Sales, Reliance Digital...", delay: 800, status: "working" },
-      { text: "Synthesizing AI Shopper Analysis Report...", delay: 1400, status: "working" },
-      { text: "Price index analysis complete!", delay: 1800, status: "success" }
-    ];
-
-    logSteps.forEach((step) => {
-      setTimeout(() => {
-        setScrapingLogs((prev) => [
-          ...prev,
-          {
-            id: Math.random().toString(),
-            time: new Date().toLocaleTimeString([], { hour12: false }),
-            text: step.text,
-            status: step.status
-          }
-        ]);
-
-        if (step.status === "success") {
-          setTimeout(async () => {
-            try {
-              const activeKey = localStorage.getItem('smart_buyer_gemini_key');
-              if (activeKey) {
-                const details = await getProductDetailsWithAi(productName, searchQuery, activeKey);
-                setSearchResult(details);
-              } else {
-                const details = getProductDetails(productName, searchQuery);
-                setSearchResult(details);
-              }
-            } catch (err) {
-              console.warn("Product details retrieval failed:", err.message);
-              const details = getProductDetails(productName, searchQuery);
-              setSearchResult(details);
-            } finally {
-              setIsLoading(false);
-            }
-          }, 200);
-        }
-      }, step.delay);
-    });
+    try {
+      const activeKey = localStorage.getItem('smart_buyer_gemini_key');
+      if (activeKey) {
+        const details = await getProductDetailsWithAi(productName, searchQuery, activeKey);
+        setSearchResult(details);
+      } else {
+        await new Promise(r => setTimeout(r, 500));
+        const details = getProductDetails(productName, searchQuery);
+        setSearchResult(details);
+      }
+    } catch (err) {
+      console.warn("Product details retrieval failed:", err.message);
+      const details = getProductDetails(productName, searchQuery);
+      setSearchResult(details);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Comparison list managers
@@ -314,7 +270,7 @@ export default function App() {
     setExpandedOfferId(expandedOfferId === offerId ? null : offerId);
   };
 
-  // Filter sort handler
+  // Sort offers
   const getSortedOffers = () => {
     if (!searchResult) return [];
     let items = [...searchResult.offers];
@@ -323,13 +279,18 @@ export default function App() {
     } else if (sortOption === 'rating') {
       return items.sort((a, b) => b.rating - a.rating);
     } else if (sortOption === 'shipping') {
-      // sort by shipping speed or shipping cost
       return items.sort((a, b) => a.shipping - b.shipping);
     }
     return items;
   };
 
-  // Get all unique brands and categories from results for the filters checklist
+  // Get the cheapest offer price
+  const getLowestPrice = () => {
+    if (!searchResult) return 0;
+    return Math.min(...searchResult.offers.map(o => o.finalTotal));
+  };
+
+  // Filter products from search results list
   const uniqueBrands = searchResultsList 
     ? [...new Set(searchResultsList.map(p => p.brand))].filter(Boolean) 
     : [];
@@ -338,65 +299,72 @@ export default function App() {
     ? [...new Set(searchResultsList.map(p => p.category))].filter(Boolean) 
     : [];
 
-  const filteredProducts = (searchResultsList || []).filter(product => {
-    // Brand Filter
-    if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) {
-      return false;
-    }
-    // Category Filter
-    if (selectedCategory !== 'All' && product.category !== selectedCategory) {
-      return false;
-    }
-    // Price Filter
-    if (minPriceFilter && product.minPrice < parseInt(minPriceFilter, 10)) {
-      return false;
-    }
-    if (maxPriceFilter && product.maxPrice > parseInt(maxPriceFilter, 10)) {
-      return false;
-    }
-    // Rating Filter
-    if (minRatingFilter && product.rating < minRatingFilter) {
-      return false;
-    }
+  let filteredProducts = (searchResultsList || []).filter(product => {
+    if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) return false;
+    if (selectedCategory !== 'All' && product.category !== selectedCategory) return false;
+    if (minPriceFilter && product.minPrice < parseInt(minPriceFilter, 10)) return false;
+    if (maxPriceFilter && product.maxPrice > parseInt(maxPriceFilter, 10)) return false;
+    if (minRatingFilter && product.rating < minRatingFilter) return false;
     return true;
   });
+
+  // Sort filtered products
+  if (resultSortOption === 'price-low') {
+    filteredProducts = [...filteredProducts].sort((a, b) => a.minPrice - b.minPrice);
+  } else if (resultSortOption === 'price-high') {
+    filteredProducts = [...filteredProducts].sort((a, b) => b.minPrice - a.minPrice);
+  } else if (resultSortOption === 'rating') {
+    filteredProducts = [...filteredProducts].sort((a, b) => b.rating - a.rating);
+  }
+
+  const lowestPrice = getLowestPrice();
+  const sortedOffers = getSortedOffers();
 
   return (
     <div className="app-container">
       {/* Decorative Blur Blobs */}
-      <div className="bg-glow-blob blob-indigo"></div>
-      <div className="bg-glow-blob blob-purple"></div>
+      <div className="bg-glow-blob blob-primary"></div>
+      <div className="bg-glow-blob blob-accent"></div>
 
       {/* Navigation Header */}
       <header className="app-navbar glass">
-        <div className="brand-logo" onClick={() => triggerQuickSearch('')}>
-          <Bot className="logo-icon" />
-          <span>Smart Buyer AI</span>
+        <div className="brand-logo" onClick={() => { setSearchResult(null); setSearchResultsList(null); setSearchQuery(''); setHasSearched(false); setActiveTab('search'); }}>
+          <ShoppingBag className="logo-icon" size={22} />
+          <span>SmartBuyer</span>
         </div>
-        <nav className="nav-links">
-          <span 
-            className={`nav-link ${activeTab === 'search' ? 'active' : ''}`}
-            onClick={() => setActiveTab('search')}
-          >
-            Price Finder
-          </span>
-          <span 
-            className={`nav-link ${activeTab === 'comparison' ? 'active' : ''}`}
-            onClick={() => setActiveTab('comparison')}
-          >
-            Matrix Compare {selectedOffers.length > 0 && `(${selectedOffers.length})`}
-          </span>
-          <span 
-            className={`nav-link ${activeTab === 'extension' ? 'active' : ''}`}
-            onClick={() => setActiveTab('extension')}
-          >
-            Chrome Extension Demo
-          </span>
-        </nav>
-        <div className="flex items-center gap-3">
-          <button className="chrome-ext-pill" onClick={() => setActiveTab('extension')}>
-            <Globe size={14} /> Add to Chrome
-          </button>
+
+        {/* Persistent Search Bar in Header */}
+        {hasSearched && (
+          <form onSubmit={handleSearchSubmit} className="nav-search-bar">
+            <Search size={16} className="nav-search-icon" />
+            <input
+              type="text"
+              className="nav-search-input"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button type="submit" className="nav-search-submit">
+              <Search size={14} />
+            </button>
+          </form>
+        )}
+
+        <div className="nav-right">
+          <nav className="nav-links">
+            <span 
+              className={`nav-link ${activeTab === 'search' ? 'active' : ''}`}
+              onClick={() => setActiveTab('search')}
+            >
+              Price Finder
+            </span>
+            <span 
+              className={`nav-link ${activeTab === 'comparison' ? 'active' : ''}`}
+              onClick={() => setActiveTab('comparison')}
+            >
+              Compare {selectedOffers.length > 0 && `(${selectedOffers.length})`}
+            </span>
+          </nav>
           <button className="settings-gear-btn" onClick={() => setIsSettingsOpen(true)} title="AI Settings">
             <Settings size={18} />
           </button>
@@ -405,187 +373,216 @@ export default function App() {
 
       {/* Main Grid Content */}
       <main className="dashboard-content">
-        {/* Left Column (Main App / Search views) */}
-        <div className="main-column animate-fade-in">
+        {/* Left Column */}
+        <div className="main-column">
           {activeTab === 'search' && (
             <>
-              {/* Home/Initial Search Hero Screen */}
+              {/* Hero Landing Page */}
               {!searchResultsList && !searchResult && !isLoading && (
-                <div className="search-hero">
-                  <div className="flex flex-wrap gap-2.5 mb-4 justify-center">
-                    <div className="badge flex items-center gap-1.5 text-xs text-indigo glass px-4 py-2 rounded-full font-semibold">
-                      <Sparkles size={12} className="text-indigo animate-pulse-glow" /> Powered by Live Indian Crawlers
-                    </div>
-                    <div className="badge flex items-center gap-1.5 text-xs text-indigo glass px-4 py-2 rounded-full font-semibold">
-                      <span>🇮🇳</span> Geofocused (Rupees ₹ & GST)
-                    </div>
-                  </div>
-                  
+                <div className="search-hero animate-fade-in">
                   {!apiKey && (
-                    <div className="settings-warning-banner glass animate-fade-in" onClick={() => setIsSettingsOpen(true)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem', borderRadius: '12px', fontSize: '0.8rem', background: 'rgba(99, 102, 241, 0.08)', border: '1px dashed rgba(99, 102, 241, 0.3)', margin: '0 auto 1.5rem auto', maxWidth: '650px', justifyContent: 'center' }}>
-                      <Info size={14} className="text-indigo animate-pulse" />
-                      <span>Running in <strong>offline simulator mode</strong>. Click here to add your <strong>Gemini API Key</strong> & enable live web price grounding on GitHub Pages!</span>
+                    <div className="api-key-hint" onClick={() => setIsSettingsOpen(true)}>
+                      <Info size={14} />
+                      <span>Running in <strong>offline mode</strong>. Add your <strong>Gemini API Key</strong> for live prices.</span>
                     </div>
                   )}
                   
-                  <h1 className="search-title">Shop Smarter in India. Compare Real-Time Prices.</h1>
+                  <h1 className="search-title">Find the Lowest Price.<br/>Across Every Store.</h1>
                   
                   <p className="search-subtitle">
-                    Our AI-powered shopping engine searches top Indian retailers (Amazon.in, Flipkart, Reliance Digital, Croma, Vijay Sales) instantly. Get accurate GST (18%) checkout estimates, auto-applied promo codes, and live pricing metrics.
+                    Compare real-time prices from Amazon.in, Flipkart, Croma, Reliance Digital & Vijay Sales. Including GST, shipping, and auto-applied coupons.
                   </p>
                   
                   <form onSubmit={handleSearchSubmit} className="search-input-container">
-                    <div className="search-input-glow animate-pulse-glow"></div>
-                    <div className="search-form-control">
-                      <div className="flex items-center flex-1">
-                        <Search size={20} className="search-search-icon" />
-                        <input
-                          type="text"
-                          className="search-bar-input"
-                          placeholder="e.g. Sony WH-1000XM5, iPhone 15 Pro, Dyson Vacuum..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                      </div>
+                    <div className="search-input-glow"></div>
+                    <div className="search-form-control glass">
+                      <Search size={20} className="search-search-icon" />
+                      <input
+                        type="text"
+                        className="search-bar-input"
+                        placeholder="Search any product... e.g. iPhone 15 Pro, Sony WH-1000XM5"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
                       <button type="submit" className="search-submit-btn">
-                        Find Best Price <ArrowUpRight size={16} />
+                        Search <ArrowUpRight size={16} />
                       </button>
                     </div>
-                    <div className="search-tip text-xs text-secondary mt-3">
-                      Press <kbd className="font-mono bg-white/10 px-1.5 py-0.5 rounded text-white text-[10px] border border-white/10">Enter ↵</kbd> to crawl live stores. Or click one of the suggestions below.
-                    </div>
                   </form>
+
+                  {/* Category Chips */}
+                  <div className="category-chips">
+                    {CATEGORY_CHIPS.map(cat => (
+                      <button 
+                        key={cat} 
+                        className="category-chip"
+                        onClick={() => triggerQuickSearch(cat === 'All' ? 'electronics' : cat.toLowerCase())}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Trending Deals - Horizontal Scroll */}
+                  <div className="trending-section">
+                    <div className="trending-header">
+                      <h2><TrendingDown size={20} className="text-green" /> Hot Price Drops</h2>
+                      <span className="text-muted text-xs">Updated hourly</span>
+                    </div>
+                    <div className="trending-scroll">
+                      {trendingDeals.map((deal) => (
+                        <div 
+                          key={deal.id} 
+                          className="deal-card glass" 
+                          onClick={() => triggerQuickSearch(deal.name)}
+                        >
+                          <div className="deal-card-header">
+                            <span className="deal-category">{deal.category}</span>
+                            <span className="deal-discount-badge">-{deal.discount}%</span>
+                          </div>
+                          <div className="deal-name">{deal.name}</div>
+                          
+                          {/* Mini Sparkline */}
+                          <div className="deal-chart-area">
+                            <svg className="deal-sparkline-svg" viewBox="0 0 100 30" preserveAspectRatio="none">
+                              <path
+                                d={`M 0 ${30 - (deal.sparkline[0] - 250) * 0.15} 
+                                    L 16 ${30 - (deal.sparkline[1] - 250) * 0.15} 
+                                    L 32 ${30 - (deal.sparkline[2] - 250) * 0.15} 
+                                    L 48 ${30 - (deal.sparkline[3] - 250) * 0.15} 
+                                    L 64 ${30 - (deal.sparkline[4] - 250) * 0.15} 
+                                    L 80 ${30 - (deal.sparkline[5] - 250) * 0.15} 
+                                    L 100 ${30 - (deal.sparkline[6] - 250) * 0.15}`}
+                                fill="none"
+                                stroke="var(--color-lowest)"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </div>
+
+                          <div className="deal-card-footer">
+                            <div className="deal-pricing">
+                              <span className="original-price">₹{deal.originalPrice.toLocaleString('en-IN')}</span>
+                              <span className="current-price">₹{deal.currentPrice.toLocaleString('en-IN')}</span>
+                            </div>
+                            <span className="deal-store">{deal.store}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Multi-product Google Shopping Results View */}
+              {/* Skeleton Loading */}
+              {isLoading && !searchResult && (
+                searchResultsList === null && !searchResult
+                  ? <SkeletonLoader />
+                  : <DetailSkeletonLoader />
+              )}
+
+              {/* Multi-product Search Results Grid */}
               {searchResultsList && !searchResult && !isLoading && (
                 <div className="shopping-results-view animate-fade-in">
                   <div className="shopping-results-header">
-                    <button className="results-back-btn" onClick={() => { setSearchResultsList(null); setSearchQuery(''); }}>
+                    <button className="results-back-btn" onClick={() => { setSearchResultsList(null); setSearchQuery(''); setHasSearched(false); }}>
                       <ArrowLeft size={14} /> Clear Search
                     </button>
-                    <h2>Shopping Results for "{searchQuery}"</h2>
-                    <p className="text-secondary text-sm">{filteredProducts.length} products found matching your filters</p>
+                    <div className="results-header-meta">
+                      <h2>Results for "{searchQuery}"</h2>
+                      <div className="results-controls">
+                        <span className="text-muted text-sm">{filteredProducts.length} products</span>
+                        <select 
+                          className="sort-select" 
+                          value={resultSortOption} 
+                          onChange={(e) => setResultSortOption(e.target.value)}
+                        >
+                          <option value="relevance">Sort: Relevance</option>
+                          <option value="price-low">Price: Low to High</option>
+                          <option value="price-high">Price: High to Low</option>
+                          <option value="rating">Highest Rated</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="shopping-layout-body">
-                    {/* Left Sidebar Filters */}
+                    {/* Filters Sidebar */}
                     <aside className="filters-sidebar glass">
+                      <div className="filter-group">
+                        <h4><SlidersHorizontal size={12} /> Filters</h4>
+                      </div>
+
                       <div className="filter-group">
                         <h4>Category</h4>
                         <div className="filter-options">
                           <button 
                             className={`category-filter-btn ${selectedCategory === 'All' ? 'active' : ''}`}
                             onClick={() => setSelectedCategory('All')}
-                          >
-                            All Categories
-                          </button>
+                          >All Categories</button>
                           {uniqueCategories.map(cat => (
                             <button
                               key={cat}
                               className={`category-filter-btn ${selectedCategory === cat ? 'active' : ''}`}
                               onClick={() => setSelectedCategory(cat)}
-                            >
-                              {cat}
-                            </button>
+                            >{cat}</button>
                           ))}
                         </div>
                       </div>
 
                       <div className="filter-group">
-                        <h4>Brands</h4>
+                        <h4>Brand</h4>
                         <div className="filter-options">
-                          {uniqueBrands.length > 0 ? (
-                            uniqueBrands.map(brand => {
-                              const isChecked = selectedBrands.includes(brand);
-                              return (
-                                <label key={brand} className="filter-checkbox-label">
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedBrands(prev => [...prev, brand]);
-                                      } else {
-                                        setSelectedBrands(prev => prev.filter(b => b !== brand));
-                                      }
-                                    }}
-                                  />
-                                  <span>{brand}</span>
-                                </label>
-                              );
-                            })
-                          ) : (
-                            <span className="text-muted text-xs">No brands found</span>
-                          )}
+                          {uniqueBrands.length > 0 ? uniqueBrands.map(brand => (
+                            <label key={brand} className="filter-checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={selectedBrands.includes(brand)}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedBrands(prev => [...prev, brand]);
+                                  else setSelectedBrands(prev => prev.filter(b => b !== brand));
+                                }}
+                              />
+                              <span>{brand}</span>
+                            </label>
+                          )) : <span className="text-muted text-xs">No brands</span>}
                         </div>
                       </div>
 
                       <div className="filter-group">
                         <h4>Price Range (₹)</h4>
                         <div className="price-range-inputs">
-                          <input
-                            type="number"
-                            placeholder="Min"
-                            value={minPriceFilter}
-                            onChange={(e) => setMinPriceFilter(e.target.value)}
-                            className="price-filter-input"
-                          />
-                          <span className="price-separator">-</span>
-                          <input
-                            type="number"
-                            placeholder="Max"
-                            value={maxPriceFilter}
-                            onChange={(e) => setMaxPriceFilter(e.target.value)}
-                            className="price-filter-input"
-                          />
+                          <input type="number" placeholder="Min" value={minPriceFilter} onChange={(e) => setMinPriceFilter(e.target.value)} className="price-filter-input" />
+                          <span className="price-separator">–</span>
+                          <input type="number" placeholder="Max" value={maxPriceFilter} onChange={(e) => setMaxPriceFilter(e.target.value)} className="price-filter-input" />
                         </div>
                       </div>
 
                       <div className="filter-group">
-                        <h4>Customer Rating</h4>
+                        <h4>Rating</h4>
                         <div className="filter-options">
                           {[4, 3, 2].map(stars => (
                             <label key={stars} className="filter-radio-label">
-                              <input
-                                type="radio"
-                                name="rating-filter"
-                                checked={minRatingFilter === stars}
-                                onChange={() => setMinRatingFilter(stars)}
-                              />
-                              <span>⭐ {stars}★ & up</span>
+                              <input type="radio" name="rating" checked={minRatingFilter === stars} onChange={() => setMinRatingFilter(stars)} />
+                              <span>{stars}★ & up</span>
                             </label>
                           ))}
                           <label className="filter-radio-label">
-                            <input
-                              type="radio"
-                              name="rating-filter"
-                              checked={minRatingFilter === 0}
-                              onChange={() => setMinRatingFilter(0)}
-                            />
-                            <span>All Ratings</span>
+                            <input type="radio" name="rating" checked={minRatingFilter === 0} onChange={() => setMinRatingFilter(0)} />
+                            <span>All</span>
                           </label>
                         </div>
                       </div>
 
                       {(selectedBrands.length > 0 || minPriceFilter || maxPriceFilter || minRatingFilter > 0 || selectedCategory !== 'All') && (
-                        <button 
-                          className="clear-filters-btn"
-                          onClick={() => {
-                            setSelectedBrands([]);
-                            setMinPriceFilter('');
-                            setMaxPriceFilter('');
-                            setMinRatingFilter(0);
-                            setSelectedCategory('All');
-                          }}
-                        >
-                          Clear Filters
-                        </button>
+                        <button className="clear-filters-btn" onClick={() => {
+                          setSelectedBrands([]); setMinPriceFilter(''); setMaxPriceFilter(''); setMinRatingFilter(0); setSelectedCategory('All');
+                        }}>Clear All Filters</button>
                       )}
                     </aside>
 
-                    {/* Main Products Grid */}
+                    {/* Products Grid */}
                     <div className="products-grid-container">
                       {filteredProducts.length > 0 ? (
                         <div className="products-grid">
@@ -597,19 +594,16 @@ export default function App() {
                               
                               <div className="product-card-meta">
                                 <span className="product-card-brand">{product.brand}</span>
-                                <span className="product-card-rating">⭐ {product.rating} <span className="text-secondary text-xs">({product.reviewsCount})</span></span>
+                                <span className="product-card-rating">⭐ {product.rating} <span className="text-muted text-xs">({product.reviewsCount})</span></span>
                               </div>
 
                               <div className="product-card-footer">
                                 <div className="product-card-pricing">
-                                  <div className="price-label">Starts at</div>
-                                  <div className="price-range-text">₹{product.minPrice.toLocaleString('en-IN')}</div>
+                                  <div className="price-label">Lowest Price</div>
+                                  <div className="price-value">₹{product.minPrice.toLocaleString('en-IN')}</div>
                                 </div>
-                                <button 
-                                  className="product-compare-btn"
-                                  onClick={() => handleSelectProduct(product.name)}
-                                >
-                                  Compare Deals <ArrowUpRight size={14} />
+                                <button className="product-compare-btn" onClick={() => handleSelectProduct(product.name)}>
+                                  Compare Prices <ArrowUpRight size={14} />
                                 </button>
                               </div>
                             </div>
@@ -617,8 +611,9 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="no-products-found glass">
+                          <ShoppingBag size={48} className="text-muted" />
                           <h3>No Products Found</h3>
-                          <p className="text-secondary text-sm">Try widening your search or clearing active filters.</p>
+                          <p className="text-secondary text-sm">Try a different search or clear your filters.</p>
                         </div>
                       )}
                     </div>
@@ -626,284 +621,196 @@ export default function App() {
                 </div>
               )}
 
-              {/* Scraping Terminal Screen while loading */}
-              {isLoading && (
-                <div className="flex flex-col items-center justify-center py-10">
-                  <h3 className="mb-4 text-secondary text-sm">Real-time Search in Progress</h3>
-                  <div className="scraping-console-container">
-                    <div className="console-header">
-                      <div className="flex">
-                        <span className="console-dot red"></span>
-                        <span className="console-dot yellow"></span>
-                        <span className="console-dot green"></span>
-                      </div>
-                      <span className="console-title">smart-buyer-scraper-node-v1.log</span>
-                    </div>
-                    {scrapingLogs.map((log) => (
-                      <div key={log.id} className="console-log-row">
-                        <span className="console-log-time">[{log.time}]</span>
-                        <span className={`console-log-status ${log.status}`}>
-                          {log.status === "working" ? "RUN" : "OK"}
-                        </span>
-                        <span className="console-log-text">{log.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Search Result Dashboard Screen */}
+              {/* Product Detail / Price Comparison View */}
               {searchResult && !isLoading && (
-                <div className="results-page-container">
-                  {/* Results Sub-header */}
+                <div className="results-page-container animate-fade-in">
+                  {/* Header */}
                   <div className="results-header-box glass">
                     <button className="results-back-btn" onClick={() => {
-                      if (searchResultsList) {
-                        setSearchResult(null);
-                      } else {
-                        setSearchResult(null);
-                        setSearchQuery('');
-                      }
+                      if (searchResultsList) { setSearchResult(null); }
+                      else { setSearchResult(null); setSearchQuery(''); setHasSearched(false); }
                     }}>
                       <ArrowLeft size={14} /> {searchResultsList ? 'Back to results' : 'Back to home'}
                     </button>
-                    <div className="flex justify-between items-start flex-wrap gap-4">
+                    <div className="results-header-content">
                       <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="category-pill text-xs px-2 py-0.5 rounded bg-indigo/20 text-indigo font-bold">
-                            {searchResult.category}
-                          </span>
-                          <span className="trending-deal-pill text-xs px-2 py-0.5 rounded bg-green/20 text-green font-bold flex items-center gap-0.5">
-                            <Flame size={10} /> Active Price Drop
-                          </span>
+                        <div className="flex items-center gap-2" style={{ marginBottom: '0.5rem' }}>
+                          <span className="category-pill">{searchResult.category}</span>
+                          <span className="lowest-badge"><Award size={10} /> Lowest: ₹{lowestPrice.toLocaleString('en-IN')}</span>
                         </div>
                         <h2 className="results-title">{searchResult.productName}</h2>
                         <p className="results-desc">{searchResult.description}</p>
                       </div>
-                      
                       <button className="action-pill-btn" onClick={() => setIsAlertModalOpen(true)}>
                         <Bell size={14} /> Set Price Alert
                       </button>
                     </div>
                   </div>
 
-                  {/* AI Purchase Recommendation Report */}
+                  {/* PRICE COMPARISON TABLE — THE HERO */}
+                  <div className="price-table-container glass">
+                    <div className="price-table-header">
+                      <h3><Tag size={16} /> Price Comparison</h3>
+                      <div className="sort-pills">
+                        {[
+                          { key: 'cheapest', label: 'Cheapest' },
+                          { key: 'rating', label: 'Top Rated' },
+                          { key: 'shipping', label: 'Shipping' }
+                        ].map(opt => (
+                          <button 
+                            key={opt.key}
+                            className={`sort-pill ${sortOption === opt.key ? 'active' : ''}`}
+                            onClick={() => setSortOption(opt.key)}
+                          >{opt.label}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="price-table-body">
+                      {sortedOffers.map((offer, index) => {
+                        const isLowest = offer.finalTotal === lowestPrice;
+                        const isChecked = selectedOffers.some((o) => o.storeId === offer.storeId);
+                        
+                        return (
+                          <div key={offer.storeId} className={`price-row ${isLowest ? 'is-lowest' : ''}`}>
+                            {/* Compare Checkbox */}
+                            <div className="price-row-check">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => handleSelectOffer(offer, e.target.checked)}
+                                title="Add to comparison"
+                              />
+                            </div>
+
+                            {/* Store */}
+                            <div className="store-cell">
+                              <div className="store-logo-dot" style={{ backgroundColor: offer.logoColor, color: offer.textColor }}>
+                                {offer.storeName[0]}
+                              </div>
+                              <div>
+                                <div className="store-name">{offer.storeName}</div>
+                                <div className="store-rating">⭐ {offer.rating} ({offer.reviews.toLocaleString()})</div>
+                              </div>
+                            </div>
+
+                            {/* Base Price */}
+                            <div className="price-cell">
+                              <div className="cell-label">Base</div>
+                              <div>₹{offer.basePrice.toLocaleString('en-IN')}</div>
+                            </div>
+
+                            {/* Shipping */}
+                            <div className="price-cell">
+                              <div className="cell-label">Shipping</div>
+                              <div>{offer.shipping === 0 ? <span className="text-green">FREE</span> : `₹${offer.shipping}`}</div>
+                            </div>
+
+                            {/* Coupon */}
+                            <div className="price-cell">
+                              <div className="cell-label">Coupon</div>
+                              {offer.coupon ? (
+                                <span className="coupon-tag">-₹{offer.coupon.discount.toLocaleString('en-IN')}</span>
+                              ) : (
+                                <span className="text-muted">—</span>
+                              )}
+                            </div>
+
+                            {/* Total */}
+                            <div className="total-cell">
+                              <div className="cell-label">Total (incl. GST)</div>
+                              <div className={`total-amount ${isLowest ? 'lowest' : ''}`}>
+                                ₹{offer.finalTotal.toLocaleString('en-IN')}
+                                {isLowest && <span className="lowest-badge"><Award size={10} /> Lowest</span>}
+                              </div>
+                            </div>
+
+                            {/* Action */}
+                            <div className="action-cell">
+                              <a href={offer.link} target="_blank" rel="noopener noreferrer" className="buy-btn">
+                                Buy <ExternalLink size={12} />
+                              </a>
+                              <button className="detail-toggle-btn" onClick={() => toggleOfferBreakdown(offer.storeId)}>
+                                {expandedOfferId === offer.storeId ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                              </button>
+                            </div>
+
+                            {/* Expanded Breakdown */}
+                            {expandedOfferId === offer.storeId && (
+                              <div className="offer-breakdown-tray">
+                                <div className="breakdown-row">
+                                  <span className="breakdown-label">Base Price</span>
+                                  <span className="breakdown-value">₹{offer.basePrice.toLocaleString('en-IN')}</span>
+                                </div>
+                                <div className="breakdown-row">
+                                  <span className="breakdown-label">Delivery</span>
+                                  <span className="breakdown-value">{offer.shipping === 0 ? 'FREE' : `₹${offer.shipping}`}</span>
+                                </div>
+                                <div className="breakdown-row">
+                                  <span className="breakdown-label">GST (18%)</span>
+                                  <span className="breakdown-value">₹{offer.tax.toLocaleString('en-IN')}</span>
+                                </div>
+                                <div className="breakdown-row">
+                                  <span className="breakdown-label">Coupon Discount</span>
+                                  <span className="breakdown-value text-green">{offer.coupon ? `-₹${offer.coupon.discount.toLocaleString('en-IN')}` : '₹0'}</span>
+                                </div>
+                                <div className="breakdown-row breakdown-total">
+                                  <span className="breakdown-label">Checkout Total</span>
+                                  <span className="breakdown-value"style={{ color: 'var(--color-primary)' }}>₹{offer.finalTotal.toLocaleString('en-IN')}</span>
+                                </div>
+                                <div className="breakdown-meta">
+                                  <span>{offer.shippingSpeed}</span>
+                                  <span>{offer.returnPolicy}</span>
+                                  <span>{offer.warranty}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Collapsible AI Report */}
                   {searchResult.aiSummary && (
-                    <div className="ai-report-card glass animate-fade-in">
-                      <div className="ai-report-header">
-                        <Sparkles size={16} className="text-indigo animate-pulse-glow" />
-                        <h3>AI Shopping Analysis Report</h3>
-                        <span className="ai-badge">SMART AI v1.0</span>
+                    <div className="collapsible-section glass">
+                      <div className="collapsible-header" onClick={() => setIsAiReportOpen(!isAiReportOpen)}>
+                        <h3><Sparkles size={16} className="text-primary-color" /> AI Shopping Analysis</h3>
+                        <ChevronDown size={18} className={`collapse-icon ${isAiReportOpen ? 'open' : ''}`} />
                       </div>
-                      <div className="ai-report-body">
-                        {formatMarkdown(searchResult.aiSummary)}
-                      </div>
+                      {isAiReportOpen && (
+                        <div className="collapsible-body animate-fade-in">
+                          <div className="ai-report-container">
+                            {formatMarkdown(searchResult.aiSummary)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* 6-Month Chart Panel */}
-                  <div className="glass card-container-with-shadow">
-                    <PriceChart 
-                      historyData={searchResult.priceHistory} 
-                      productName={searchResult.productName} 
-                    />
-                  </div>
-
-                  {/* Filters and sorting panel */}
-                  <div className="filters-bar glass">
-                    <div className="flex items-center gap-3">
-                      <span className="text-secondary text-sm">Sort Results:</span>
-                      <select 
-                        value={sortOption} 
-                        onChange={(e) => setSortOption(e.target.value)}
-                        className="filter-select"
-                      >
-                        <option value="cheapest">Cheapest Total Price (Cheapest First)</option>
-                        <option value="rating">Store Rating (Highest First)</option>
-                        <option value="shipping">Shipping Cost (Lowest First)</option>
-                      </select>
+                  {/* Collapsible Price History Chart */}
+                  <div className="collapsible-section glass">
+                    <div className="collapsible-header" onClick={() => setIsChartOpen(!isChartOpen)}>
+                      <h3><TrendingDown size={16} className="text-green" /> 6-Month Price History</h3>
+                      <ChevronDown size={18} className={`collapse-icon ${isChartOpen ? 'open' : ''}`} />
                     </div>
-                    
-                    <div className="text-xs text-secondary flex items-center gap-1">
-                      <Info size={12} className="text-indigo" /> Click "Compare" to add listings to the matrix comparison tool.
-                    </div>
-                  </div>
-
-                  {/* Offers List */}
-                  <div className="offers-list-container">
-                    {getSortedOffers().map((offer, index) => {
-                      const isChecked = selectedOffers.some((o) => o.storeId === offer.storeId);
-                      const isCheapest = index === 0 && sortOption === 'cheapest';
-                      
-                      return (
-                        <div 
-                          key={offer.storeId} 
-                          className={`offer-card glass ${isCheapest ? 'cheapest-store' : ''}`}
-                        >
-                          {isCheapest && (
-                            <span className="best-badge">
-                              <Award size={10} style={{ display: 'inline', marginRight: '3px' }} /> Cheapest
-                            </span>
-                          )}
-
-                          {/* Store badge and selection */}
-                          <div className="offer-store-badge-col">
-                            <label className="compare-checkbox-wrapper">
-                              <input
-                                type="checkbox"
-                                className="compare-checkbox"
-                                checked={isChecked}
-                                onChange={(e) => handleSelectOffer(offer, e.target.checked)}
-                              />
-                            </label>
-                            <div 
-                              className="store-large-badge"
-                              style={{ backgroundColor: offer.logoColor, color: offer.textColor }}
-                            >
-                              {offer.storeName[0]}
-                            </div>
-                          </div>
-
-                          {/* Store specs, returns, ratings */}
-                          <div className="offer-details-col">
-                            <div className="offer-store-name">{offer.storeName}</div>
-                            <div className="rating-stars">
-                              <span>⭐ {offer.rating}</span>
-                              <span className="text-muted">({offer.reviews.toLocaleString()} reviews)</span>
-                            </div>
-                            <div className="offer-policies">
-                              <span className="policy-tag">{offer.shippingSpeed}</span>
-                              <span className="policy-tag">{offer.returnPolicy}</span>
-                            </div>
-                          </div>
-
-                          {/* Pricing (Base, discount, final total) */}
-                          <div className="offer-price-col">
-                            <span className="offer-base-price">Base: ₹{offer.basePrice.toLocaleString('en-IN')}</span>
-                            <span className="offer-total-price">₹{offer.finalTotal.toLocaleString('en-IN')}</span>
-                            {offer.coupon ? (
-                              <span className="offer-coupon-tag">
-                                🎫 Code {offer.coupon.code} applied (-₹{offer.coupon.discount.toLocaleString('en-IN')})
-                              </span>
-                            ) : (
-                              <span className="text-muted text-xs">No active coupons</span>
-                            )}
-                          </div>
-
-                          {/* Purchase Action Buttons */}
-                          <div className="offer-action-col">
-                            <a 
-                              href={offer.link} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="offer-buy-now-btn"
-                            >
-                              Go to Store <ExternalLink size={13} />
-                            </a>
-                            <button 
-                              className="offer-breakdown-toggle" 
-                              onClick={() => toggleOfferBreakdown(offer.storeId)}
-                            >
-                              {expandedOfferId === offer.storeId ? 'Hide details' : 'Show breakdown'}
-                            </button>
-                          </div>
-
-                          {/* Detail Breakdown Tray (Toggled) */}
-                          {expandedOfferId === offer.storeId && (
-                            <div className="offer-breakdown-tray">
-                              <div className="breakdown-item">
-                                <span className="breakdown-label">Base Cost</span>
-                                <span className="breakdown-value">₹{offer.basePrice.toLocaleString('en-IN')}</span>
-                              </div>
-                              <div className="breakdown-item">
-                                <span className="breakdown-label">Delivery</span>
-                                <span className="breakdown-value">
-                                  {offer.shipping === 0 ? 'FREE' : `₹${offer.shipping}`}
-                                </span>
-                              </div>
-                              <div className="breakdown-item">
-                                <span className="breakdown-label">Est. GST (18%)</span>
-                                <span className="breakdown-value">₹{offer.tax.toLocaleString('en-IN')}</span>
-                              </div>
-                              <div className="breakdown-item">
-                                <span className="breakdown-label">Discount Applied</span>
-                                <span className="breakdown-value text-green">
-                                  {offer.coupon ? `-₹${offer.coupon.discount.toLocaleString('en-IN')}` : '₹0'}
-                                </span>
-                              </div>
-                              <div className="breakdown-item">
-                                <span className="breakdown-label">Final Checkout Total</span>
-                                <span className="breakdown-value text-indigo font-bold">₹{offer.finalTotal.toLocaleString('en-IN')}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* General Landing page: Trending deals grid */}
-              {!searchResult && !isLoading && (
-                <div className="trending-deals-section">
-                  <div className="section-header-row">
-                    <h3 className="section-title">
-                      <TrendingDown className="text-green" size={20} /> Hot Price Drops Today
-                    </h3>
-                    <span className="text-secondary text-xs">Updated hourly</span>
-                  </div>
-
-                  <div className="deals-grid">
-                    {trendingDeals.map((deal) => (
-                      <div 
-                        key={deal.id} 
-                        className="deal-card glass" 
-                        onClick={() => triggerQuickSearch(deal.name)}
-                      >
-                        <div className="deal-card-header">
-                          <span className="deal-category">{deal.category}</span>
-                          <span className="deal-tag">-{deal.discount}% drop</span>
-                        </div>
-                        <div className="deal-name">{deal.name}</div>
-                        
-                        {/* Mini Sparkline Price Trajectory Graph */}
-                        <div className="deal-chart-area">
-                          <svg className="deal-sparkline-svg" viewBox="0 0 100 30" preserveAspectRatio="none">
-                            <path
-                              d={`M 0 ${30 - (deal.sparkline[0] - 250) * 0.15} 
-                                  L 16 ${30 - (deal.sparkline[1] - 250) * 0.15} 
-                                  L 32 ${30 - (deal.sparkline[2] - 250) * 0.15} 
-                                  L 48 ${30 - (deal.sparkline[3] - 250) * 0.15} 
-                                  L 64 ${30 - (deal.sparkline[4] - 250) * 0.15} 
-                                  L 80 ${30 - (deal.sparkline[5] - 250) * 0.15} 
-                                  L 100 ${30 - (deal.sparkline[6] - 250) * 0.15}`}
-                              fill="none"
-                              stroke="#10b981"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                        </div>
-
-                        <div className="deal-card-footer">
-                          <div className="deal-pricing">
-                            <span className="original-price">₹{deal.originalPrice.toLocaleString('en-IN')}</span>
-                            <span className="current-price">₹{deal.currentPrice.toLocaleString('en-IN')}</span>
-                          </div>
-                          <span className="deal-store">{deal.store}</span>
-                        </div>
+                    {isChartOpen && (
+                      <div className="collapsible-body animate-fade-in">
+                        <PriceChart 
+                          historyData={searchResult.priceHistory} 
+                          productName={searchResult.productName} 
+                        />
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}
             </>
           )}
 
-          {/* Tab 2: Comparison side-by-side specs matrix */}
+          {/* Comparison Matrix Tab */}
           {activeTab === 'comparison' && (
-            <div className="glass card-container-with-shadow">
+            <div className="glass" style={{ borderRadius: 'var(--radius-lg)' }}>
               <ComparisonMatrix
                 selectedOffers={selectedOffers}
                 specs={searchResult?.specs || {}}
@@ -912,84 +819,9 @@ export default function App() {
               />
             </div>
           )}
-
-          {/* Tab 3: Browser extension simulation window */}
-          {activeTab === 'extension' && (
-            <div className="chrome-simulator-page glass">
-              <div className="simulator-hero">
-                <h3 className="simulator-title">Smart Buyer Companion Extension</h3>
-                <p className="simulator-subtitle">
-                  Demo: See how our browser extension automatically alerts you of lower prices and auto-applies coupons while you browse e-commerce sites like Amazon!
-                </p>
-              </div>
-
-              <div className="browser-window-frame">
-                <div className="browser-titlebar">
-                  <div className="browser-dots">
-                    <span className="browser-dot c1"></span>
-                    <span className="browser-dot c2"></span>
-                    <span className="browser-dot c3"></span>
-                  </div>
-                  <div className="browser-addressbar">
-                    <Globe size={12} className="text-secondary" />
-                    <span>https://www.amazon.in/dp/B0CK193XF?tag=amzn-smart-buyer-in-21</span>
-                  </div>
-                </div>
-                
-                <div className="browser-webpage-viewport">
-                  {/* Amazon mockup content */}
-                  <div className="amzn-logo">amazon.in</div>
-                  
-                  <div className="amzn-product-layout">
-                    <div className="amzn-product-image">
-                      Sony WH-1000XM5 Headphones
-                    </div>
-                    <div className="amzn-product-details">
-                      <div className="amzn-title">Sony WH-1000XM5 Wireless Industry Leading Noise Canceling Headphones</div>
-                      <div className="amzn-rating">⭐⭐⭐⭐⭐ 4.8 out of 5 stars (14,500 ratings)</div>
-                      
-                      <div className="amzn-price-box">
-                        <div className="amzn-price-label">Amazon List Price:</div>
-                        <div className="amzn-price-tag">₹29,990</div>
-                        <div className="amzn-prime">✓ prime Free Delivery</div>
-                      </div>
-
-                      <button className="amzn-buy-btn">Add to Cart</button>
-                    </div>
-                  </div>
-
-                  {/* Glassmorphic Extension Popup Alert Simulator */}
-                  <div className="simulated-extension-popup">
-                    <div className="flex justify-between items-center">
-                      <span className="ext-badge">Smart Buyer AI</span>
-                      <Sparkles size={14} className="text-purple animate-pulse-glow" />
-                    </div>
-                    <div className="ext-title">💡 Save ₹3,000 Instantly!</div>
-                    <p className="ext-message">
-                      Croma currently has this same item in stock for **₹26,990** total.
-                    </p>
-                    <div className="ext-coupon-pill">
-                      🎫 Promo Code "TROMASAVE" Auto-Applied
-                    </div>
-                    <div className="ext-savings-banner">
-                      <div className="breakdown-label">Net Price:</div>
-                      <div className="ext-savings-amt">₹26,990</div>
-                    </div>
-                    <button 
-                      className="ext-action-btn"
-                      onClick={() => triggerQuickSearch("Sony WH-1000XM5")}
-                    >
-                      Redirect & Compare Offers
-                    </button>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right Column (AI Shopping Assistant Chatbot) */}
+        {/* Right Column — AI Assistant */}
         <div className="side-column">
           <AiAssistant 
             currentSearchData={searchResult} 
@@ -998,18 +830,15 @@ export default function App() {
         </div>
       </main>
 
-      {/* Floating Comparison Drawer at bottom when item checked */}
+      {/* Floating Comparison Drawer */}
       {selectedOffers.length > 0 && activeTab !== 'comparison' && (
-        <div className="comparison-basket-drawer">
+        <div className="comparison-basket-drawer glass">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold">Compare Basket ({selectedOffers.length}/3):</span>
+            <span className="text-sm font-semibold">Compare ({selectedOffers.length}/3):</span>
             <div className="basket-offers-list">
               {selectedOffers.map((offer) => (
-                <div key={offer.storeId} className="basket-offer-pill">
-                  <span 
-                    className="basket-store-initial" 
-                    style={{ backgroundColor: offer.logoColor, color: offer.textColor }}
-                  >
+                <div key={offer.storeId} className="basket-offer-chip">
+                  <span className="basket-store-initial" style={{ backgroundColor: offer.logoColor, color: offer.textColor }}>
                     {offer.storeName[0]}
                   </span>
                   <span>{offer.storeName} (₹{offer.finalTotal.toLocaleString('en-IN')})</span>
@@ -1021,17 +850,15 @@ export default function App() {
             </div>
           </div>
           <div className="basket-actions">
-            <button className="basket-clear-btn" onClick={clearCompareBasket}>
-              Clear All
-            </button>
+            <button className="basket-clear-btn" onClick={clearCompareBasket}>Clear</button>
             <button className="basket-compare-trigger-btn" onClick={() => setActiveTab('comparison')}>
-              Compare Side-by-Side <Scale size={14} />
+              Compare <Scale size={14} />
             </button>
           </div>
         </div>
       )}
 
-      {/* Alert Subscription Modal */}
+      {/* Alert Modal */}
       {searchResult && (
         <AlertModal
           isOpen={isAlertModalOpen}
@@ -1043,54 +870,39 @@ export default function App() {
 
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="alert-modal-overlay">
-          <div className="alert-modal-content glass">
-            <button className="alert-modal-close" onClick={() => setIsSettingsOpen(false)}>
+        <div className="settings-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setIsSettingsOpen(false); }}>
+          <div className="settings-modal-content glass animate-fade-in">
+            <button className="settings-modal-close" onClick={() => setIsSettingsOpen(false)}>
               <X size={16} />
             </button>
-            <div className="alert-modal-header">
-              <Settings size={20} className="text-indigo" />
-              <h3>Smart Buyer AI Settings</h3>
+            <div className="settings-modal-header">
+              <Settings size={20} className="text-primary-color" />
+              <h3 className="settings-modal-title">Settings</h3>
             </div>
-            <div className="alert-modal-body">
-              <p className="text-secondary text-sm mb-4">
-                To run the e-commerce comparison engine in real-time on a static hosting service like GitHub Pages, add your Google Gemini API Key. The key is stored securely in your local browser and is never sent to any external server.
+            <div className="settings-modal-body">
+              <p className="text-secondary text-sm" style={{ marginBottom: '1.5rem' }}>
+                Add your Google Gemini API Key to enable live web price grounding. Your key is stored only in your browser's local storage.
               </p>
               
-              <div className="form-group mb-4">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-2">
-                  Gemini API Key
-                </label>
-                <input
-                  type="password"
-                  placeholder="AIzaSy..."
-                  value={apiKey}
-                  onChange={(e) => {
-                    setApiKey(e.target.value);
-                    localStorage.setItem('smart_buyer_gemini_key', e.target.value);
-                  }}
-                  className="alert-input"
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff' }}
-                />
-              </div>
+              <label className="settings-label">Gemini API Key</label>
+              <input
+                type="password"
+                placeholder="AIzaSy..."
+                value={apiKey}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  localStorage.setItem('smart_buyer_gemini_key', e.target.value);
+                }}
+                className="settings-input"
+              />
 
-              <div className="flex gap-2 justify-end">
+              <div className="settings-actions">
                 {apiKey && (
-                  <button
-                    onClick={() => {
-                      setApiKey('');
-                      localStorage.removeItem('smart_buyer_gemini_key');
-                    }}
-                    className="alert-submit-btn"
-                    style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
-                  >
+                  <button className="settings-clear-btn" onClick={() => { setApiKey(''); localStorage.removeItem('smart_buyer_gemini_key'); }}>
                     Clear Key
                   </button>
                 )}
-                <button
-                  onClick={() => setIsSettingsOpen(false)}
-                  className="alert-submit-btn"
-                >
+                <button className="settings-save-btn" onClick={() => setIsSettingsOpen(false)}>
                   Save & Close
                 </button>
               </div>
