@@ -190,8 +190,19 @@ export default function App() {
         const listData = await searchProductsListWithAi(query, activeKey);
         setSearchResultsList(listData);
       } else {
-        // Small delay for UI feel
-        await new Promise(r => setTimeout(r, 600));
+        // Try calling the backend API first (which runs live e-commerce scrapers!)
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setSearchResult(data);
+            return;
+          }
+        } catch (apiErr) {
+          console.warn("Local backend API not reachable. Falling back to client-side simulation:", apiErr.message);
+        }
+
+        // Fallback: client-side simulated list
         const listData = searchProductsList(query);
         setSearchResultsList(listData);
       }
@@ -231,7 +242,18 @@ export default function App() {
         const details = await getProductDetailsWithAi(productName, searchQuery, activeKey);
         setSearchResult(details);
       } else {
-        await new Promise(r => setTimeout(r, 500));
+        // Try calling backend API first
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(productName)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setSearchResult(data);
+            return;
+          }
+        } catch (apiErr) {
+          console.warn("Local backend API not reachable. Falling back to client-side simulation:", apiErr.message);
+        }
+
         const details = getProductDetails(productName, searchQuery);
         setSearchResult(details);
       }
