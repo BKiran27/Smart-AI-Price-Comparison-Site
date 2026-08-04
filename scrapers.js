@@ -535,6 +535,23 @@ export async function getAggregatedSearch(rawQuery) {
   }
   priceHistoryValues[5] = finalAnchorPrice;
 
+  // Calculate advanced metrics
+  const highestPrice = Math.max(...priceHistoryValues);
+  const lowestPrice = Math.min(...priceHistoryValues);
+  const averagePrice = Math.round(priceHistoryValues.reduce((a, b) => a + b, 0) / priceHistoryValues.length);
+  const priceDropPercentage = Math.round(((averagePrice - finalAnchorPrice) / averagePrice) * 100);
+  
+  // Deal Score Calculation (0-100)
+  // Base 50, +2 for every % drop from average, + points for being closer to historical low
+  const dropScore = priceDropPercentage * 2;
+  const lowProximity = ((highestPrice - finalAnchorPrice) / (highestPrice - lowestPrice || 1)) * 30;
+  let dealScore = Math.round(40 + dropScore + lowProximity);
+  dealScore = Math.min(100, Math.max(0, dealScore));
+
+  let verdict = "Fair Price";
+  if (dealScore >= 75) verdict = "Buy Now";
+  else if (dealScore < 40) verdict = "Wait for Drop";
+
   // Format capitalized title
   const formattedTitle = matchingKey 
     ? SEED_PRODUCT_DB[matchingKey].name 
@@ -549,6 +566,14 @@ export async function getAggregatedSearch(rawQuery) {
     priceHistory: {
       labels: priceHistoryLabels,
       prices: priceHistoryValues
+    },
+    analytics: {
+      highestPrice,
+      lowestPrice,
+      averagePrice,
+      priceDropPercentage,
+      dealScore,
+      verdict
     }
   };
 }

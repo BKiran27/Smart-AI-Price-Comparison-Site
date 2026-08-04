@@ -382,6 +382,21 @@ ${couponText}
 
 🔒 *Source verification:* Simulation of current real-time Indian retail benchmarks.`;
 
+  const highestPrice = Math.max(...priceHistory.prices);
+  const lowestPrice = Math.min(...priceHistory.prices);
+  const averagePrice = Math.round(priceHistory.prices.reduce((a, b) => a + b, 0) / priceHistory.prices.length);
+  const finalAnchorPrice = cheapestBase;
+  const priceDropPercentage = Math.round(((averagePrice - finalAnchorPrice) / averagePrice) * 100);
+  
+  const dropScore = priceDropPercentage * 2;
+  const lowProximity = ((highestPrice - finalAnchorPrice) / (highestPrice - lowestPrice || 1)) * 30;
+  let dealScore = Math.round(40 + dropScore + lowProximity);
+  dealScore = Math.min(100, Math.max(0, dealScore));
+
+  let verdict = "Fair Price";
+  if (dealScore >= 75) verdict = "Buy Now";
+  else if (dealScore < 40) verdict = "Wait for Drop";
+
   return {
     productName: productInfo.name,
     category: productInfo.category,
@@ -389,6 +404,14 @@ ${couponText}
     specs: productInfo.specs,
     offers: sortedOffers,
     priceHistory,
+    analytics: {
+      highestPrice,
+      lowestPrice,
+      averagePrice,
+      priceDropPercentage,
+      dealScore,
+      verdict
+    },
     aiSummary,
     maxBudget,
     targetQuery: cleanQuery
@@ -526,7 +549,36 @@ Ensure all prices are numbers (no commas or ₹ symbols inside the price propert
     const text = result.response.text().trim();
     // Strip markdown code fences if Gemini puts them in
     const jsonText = text.replace(/^```json/i, '').replace(/```$/i, '').trim();
-    return JSON.parse(jsonText);
+    const data = JSON.parse(jsonText);
+
+    // Ensure analytics exists
+    if (!data.analytics && data.priceHistory && data.offers && data.offers.length > 0) {
+      const highestPrice = Math.max(...data.priceHistory.prices);
+      const lowestPrice = Math.min(...data.priceHistory.prices);
+      const averagePrice = Math.round(data.priceHistory.prices.reduce((a, b) => a + b, 0) / data.priceHistory.prices.length);
+      const finalAnchorPrice = data.offers[0].basePrice;
+      const priceDropPercentage = Math.round(((averagePrice - finalAnchorPrice) / averagePrice) * 100);
+      
+      const dropScore = priceDropPercentage * 2;
+      const lowProximity = ((highestPrice - finalAnchorPrice) / (highestPrice - lowestPrice || 1)) * 30;
+      let dealScore = Math.round(40 + dropScore + lowProximity);
+      dealScore = Math.min(100, Math.max(0, dealScore));
+
+      let verdict = "Fair Price";
+      if (dealScore >= 75) verdict = "Buy Now";
+      else if (dealScore < 40) verdict = "Wait for Drop";
+
+      data.analytics = {
+        highestPrice,
+        lowestPrice,
+        averagePrice,
+        priceDropPercentage,
+        dealScore,
+        verdict
+      };
+    }
+
+    return data;
   } catch (err) {
     console.error("Gemini Search Grounding failed:", err);
     throw err;

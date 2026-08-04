@@ -12,6 +12,7 @@ import {
   getProductDetails, getProductDetailsWithAi
 } from './utils/SearchEngine';
 import PriceChart from './components/PriceChart';
+import PriceAnalyzer from './components/PriceAnalyzer';
 import AiAssistant from './components/AiAssistant';
 import ComparisonMatrix from './components/ComparisonMatrix';
 import AlertModal from './components/AlertModal';
@@ -825,6 +826,11 @@ export default function App() {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Price Analyzer */}
+                  {searchResult.analytics && (
+                    <PriceAnalyzer analytics={searchResult.analytics} />
+                  )}
                 </div>
               )}
             </>
