@@ -11,7 +11,7 @@ Error generating stack: `+e.message+`
 `));let _=Math.round(p.finalTotal-f.finalTotal),v=`### AI Shopper Analysis Report
   
 🤖 **AI Recommendation:**
-We scanned the top global fashion and beauty stores. The cheapest direct offer for **"${a.name}"** is at **${f.storeName}** with a final checkout cost of **₹${f.finalTotal.toLocaleString(`en-IN`)}** (Base price: ₹${f.basePrice.toLocaleString(`en-IN`)}, Tax: ₹${f.tax.toLocaleString(`en-IN`)}, Delivery: ${f.shipping===0?`FREE`:`₹${f.shipping}`}).
+We scanned the top Indian fashion and beauty stores. The cheapest direct offer for **"${a.name}"** is at **${f.storeName}** with a final checkout cost of **₹${f.finalTotal.toLocaleString(`en-IN`)}** (Base price: ₹${f.basePrice.toLocaleString(`en-IN`)}, Tax: ₹${f.tax.toLocaleString(`en-IN`)}, Delivery: ${f.shipping===0?`FREE`:`₹${f.shipping}`}).
 
 💰 **Savings Potential:**
 Buying from **${f.storeName}** instead of the most expensive store (**${p.storeName}** at ₹${p.finalTotal.toLocaleString(`en-IN`)} total) saves you **₹${_.toLocaleString(`en-IN`)}** immediately!
